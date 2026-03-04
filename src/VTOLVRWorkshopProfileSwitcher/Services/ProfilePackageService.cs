@@ -34,6 +34,10 @@ public sealed class ProfilePackageService
                 EnabledWorkshopIds = profile.EnabledMods
                     .Where(IsNumericWorkshopId)
                     .Distinct(StringComparer.Ordinal)
+                    .ToList(),
+                IncludedWorkshopIds = (profile.IncludedMods.Count == 0 ? profile.EnabledMods : profile.IncludedMods)
+                    .Where(IsNumericWorkshopId)
+                    .Distinct(StringComparer.Ordinal)
                     .ToList()
             })
             .ToList();
@@ -106,6 +110,25 @@ public sealed class ProfilePackageService
                 }
             }
 
+            var normalizedIncludedIds = new List<string>();
+            var seenIncludedIds = new HashSet<string>(StringComparer.Ordinal);
+            var includedSource = profileDocument.IncludedWorkshopIds?.Count > 0
+                ? profileDocument.IncludedWorkshopIds
+                : profileDocument.EnabledWorkshopIds;
+            foreach (var workshopId in includedSource ?? new List<string>())
+            {
+                if (!IsNumericWorkshopId(workshopId))
+                {
+                    result.RemovedInvalidWorkshopIdsCount++;
+                    continue;
+                }
+
+                if (seenIncludedIds.Add(workshopId))
+                {
+                    normalizedIncludedIds.Add(workshopId);
+                }
+            }
+
             var finalName = normalizedName;
             if (knownNames.Contains(normalizedName))
             {
@@ -132,6 +155,7 @@ public sealed class ProfilePackageService
                 Name = finalName,
                 Notes = profileDocument.Notes?.Trim() ?? string.Empty,
                 EnabledMods = normalizedIds,
+                IncludedMods = normalizedIncludedIds,
                 CreatedAt = now
             });
         }

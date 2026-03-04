@@ -2,8 +2,6 @@ using System;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Media;
 using Avalonia.Threading;
 using VTOLVRWorkshopProfileSwitcher.ViewModels;
 
@@ -26,15 +24,6 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() =>
         {
             Opacity = 1;
-
-            if (this.FindControl<Grid>("MainContentHost") is { } host)
-            {
-                host.Opacity = 1;
-                if (host.RenderTransform is TranslateTransform transform)
-                {
-                    transform.Y = 0;
-                }
-            }
         }, DispatcherPriority.Background);
     }
 
@@ -74,42 +63,4 @@ public partial class MainWindow : Window
         Classes.Set("design-red", !isBlue);
     }
 
-    private void OnModCardTapped(object? sender, TappedEventArgs e)
-    {
-        if (sender is not Border border || border.DataContext is not ModItemViewModel mod)
-        {
-            return;
-        }
-
-        if (IsTapFromInteractiveControl(e.Source))
-        {
-            return;
-        }
-
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.OpenModWorkshopPage(mod);
-        }
-    }
-
-    private static bool IsTapFromInteractiveControl(object? source)
-    {
-        if (source is not StyledElement start)
-        {
-            return false;
-        }
-
-        StyledElement? current = start;
-        while (current is not null)
-        {
-            if (current is Button || current is ToggleSwitch || current is CheckBox)
-            {
-                return true;
-            }
-
-            current = current.Parent as StyledElement;
-        }
-
-        return false;
-    }
 }

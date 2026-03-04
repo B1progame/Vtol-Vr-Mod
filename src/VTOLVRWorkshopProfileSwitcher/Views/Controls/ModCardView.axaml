@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             xmlns:conv="clr-namespace:VTOLVRWorkshopProfileSwitcher.Converters"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Controls.ModCardView"
+             x:DataType="controls:ModCardView"
+             x:Name="Root"
+             mc:Ignorable="d">
+  <UserControl.Resources>
+    <conv:BoolToOnOffConverter x:Key="OnOffConverter" />
+  </UserControl.Resources>
+
+  <Border Classes="mod-card" Width="246" Height="220">
+    <Grid RowDefinitions="108,Auto,*">
+      <Border Grid.Row="0" CornerRadius="8" Background="#1D2A42" ClipToBounds="True">
+        <Image Source="{Binding ThumbnailImage, ElementName=Root}" Stretch="UniformToFill" />
+      </Border>
+
+      <StackPanel Grid.Row="1" Margin="0,8,0,0" Spacing="4">
+        <TextBlock Text="{Binding Title, ElementName=Root}"
+                   FontWeight="SemiBold"
+                   FontSize="15"
+                   MaxLines="2"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding Subtitle, ElementName=Root}" Classes="text-muted" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+
+      <Grid Grid.Row="2" Margin="0,10,0,0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" VerticalAlignment="Bottom">
+        <Button Content="Details"
+                Classes="secondary-button"
+                Command="{Binding DetailsCommand, ElementName=Root}"
+                CommandParameter="{Binding DetailsCommandParameter, ElementName=Root}" />
+        <Button Grid.Column="1"
+                Margin="8,0,0,0"
+                Content="{Binding SecondaryActionText, ElementName=Root}"
+                Classes="primary-button"
+                IsVisible="{Binding ShowSecondaryAction, ElementName=Root}"
+                Command="{Binding SecondaryActionCommand, ElementName=Root}"
+                CommandParameter="{Binding SecondaryActionCommandParameter, ElementName=Root}" />
+        <Button Grid.Column="2"
+                Margin="8,0,0,0"
+                Content="{Binding TertiaryActionText, ElementName=Root}"
+                Classes="danger-button"
+                IsVisible="{Binding ShowTertiaryAction, ElementName=Root}"
+                Command="{Binding TertiaryActionCommand, ElementName=Root}"
+                CommandParameter="{Binding TertiaryActionCommandParameter, ElementName=Root}" />
+
+        <ToggleSwitch Grid.Column="4"
+                      IsChecked="{Binding ModEnabled, ElementName=Root, Mode=TwoWay}"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Right"
+                      IsVisible="{Binding ShowToggle, ElementName=Root}" />
+
+        <TextBlock Grid.Column="4"
+                   Text="{Binding StatusText, ElementName=Root}"
+                   VerticalAlignment="Center"
+                   Classes="text-muted"
+                   IsVisible="{Binding ShowStatusText, ElementName=Root}" />
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

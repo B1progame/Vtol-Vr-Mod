@@ -1,3 +1,5 @@
+using System;
+
 namespace VTOLVRWorkshopProfileSwitcher.Models;
 
 public sealed class WorkshopMod
@@ -9,4 +11,8 @@ public sealed class WorkshopMod
     public string DisplayName { get; set; } = "Unknown Mod";
     public string? ThumbnailPath { get; set; }
     public long? DownloadCount { get; set; }
+    public string? LocalVersion { get; set; }
+    public string? RemoteVersion { get; set; }
+    public string? Author { get; set; }
+    public DateTimeOffset? LastUpdatedUtc { get; set; }
 }

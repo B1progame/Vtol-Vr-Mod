@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
@@ -45,6 +46,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly BackupService _backupService;
     private readonly AppSettingsService _settingsService;
     private readonly AppLogger _logger;
+    private readonly DirectorySizeCacheService _directorySizeCache = new();
 
     private readonly ObservableCollection<ModItemViewModel> _allMods = new();
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -52,6 +54,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly SemaphoreSlim _autoCleanupLock = new(1, 1);
     private bool _suppressSettingsSave;
     private bool _isProjectingDependencyStates;
+    private bool _isLoadingProfileSelectionIntoToggles;
+    private CancellationTokenSource? _addModeProfileSaveCts;
     private CancellationTokenSource? _dependencyPreviewCts;
     private HashSet<string>? _lastRequestedEnabledSet;
     private List<string> _lastRequiredOrderedIds = new();
@@ -65,6 +69,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private ObservableCollection<ProfileItemViewModel> profiles = new();
 
     [ObservableProperty]
+    private ObservableCollection<ProfileItemViewModel> filteredProfiles = new();
+
+    [ObservableProperty]
     private ProfileItemViewModel? selectedProfile;
 
     [ObservableProperty]
@@ -72,6 +79,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string profileNotesInput = string.Empty;
+
+    [ObservableProperty]
+    private string profileSearchQuery = string.Empty;
 
     [ObservableProperty]
     private string searchQuery = string.Empty;
@@ -90,6 +100,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool isBusy;
+
+    [ObservableProperty]
+    private bool isLaunchingGame;
 
     [ObservableProperty]
     private bool openSteamPageAfterDelete = true;
@@ -163,14 +176,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _allMods.CollectionChanged += OnModsCollectionChanged;
         _watcher.WorkshopChanged += OnWorkshopChangedAsync;
         EnsureGitHubHttpDefaults();
+        InitializeShell();
 
         _ = InitializeAsync();
     }
 
     public override void Dispose()
     {
+        TrySetDoorstopEnabled(false, out _, out _);
+        _addModeProfileSaveCts?.Cancel();
+        _addModeProfileSaveCts?.Dispose();
         _dependencyPreviewCts?.Cancel();
         _dependencyPreviewCts?.Dispose();
+        _profileDependencyToggleCts?.Cancel();
+        _profileDependencyToggleCts?.Dispose();
         _watcher.Dispose();
         _autoCleanupLock.Dispose();
         _liveDependencyLock.Dispose();
@@ -193,6 +212,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         ProfileNotesInput = value.Notes;
     }
 
+    partial void OnProfileSearchQueryChanged(string value)
+    {
+        ApplyProfileFilter();
+    }
+
     partial void OnSelectedDesignChanged(string value)
     {
         SaveSettingsIfNeeded();
@@ -212,12 +236,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(MissingModsCount));
         OnPropertyChanged(nameof(HasMissingMods));
+        NotifyModStatsChanged();
     }
 
     [RelayCommand]
     private void ToggleSettings()
     {
-        IsSettingsOpen = !IsSettingsOpen;
+        NavigateSettings();
     }
 
     [RelayCommand]
@@ -551,6 +576,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             Name = name,
             EnabledMods = enabled,
+            IncludedMods = enabled.Distinct(StringComparer.Ordinal).ToList(),
             CreatedAt = DateTime.UtcNow,
             Notes = ProfileNotesInput.Trim()
         };
@@ -669,18 +695,36 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task DeleteSelectedProfileAsync()
+    private async Task DeleteSelectedProfileAsync(IList? selectedItems)
     {
-        if (SelectedProfile is null)
+        var selectedProfiles = selectedItems?
+            .OfType<ProfileItemViewModel>()
+            .Distinct()
+            .ToList() ?? new List<ProfileItemViewModel>();
+
+        if (selectedProfiles.Count == 0 && SelectedProfile is not null)
         {
+            selectedProfiles.Add(SelectedProfile);
+        }
+
+        if (selectedProfiles.Count == 0)
+        {
+            StatusMessage = "No profile selected";
             return;
         }
 
-        var profileName = SelectedProfile.Name;
-        await _profileService.DeleteProfileAsync(profileName);
-        await _logger.LogAsync($"Deleted profile '{profileName}'");
+        var deletedCount = 0;
+        foreach (var profile in selectedProfiles)
+        {
+            await _profileService.DeleteProfileAsync(profile.Name);
+            await _logger.LogAsync($"Deleted profile '{profile.Name}'");
+            deletedCount++;
+        }
+
         await LoadProfilesAsync();
-        StatusMessage = $"Deleted profile '{profileName}'";
+        StatusMessage = deletedCount == 1
+            ? $"Deleted profile '{selectedProfiles[0].Name}'"
+            : $"Deleted {deletedCount} profiles";
     }
 
     [RelayCommand]
@@ -945,16 +989,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         await DetectPathsAsync();
         await LoadProfilesAsync();
         await CheckForUpdatesAsync();
+        await LoadShellDataAsync();
     }
 
     private async Task LoadProfilesAsync()
     {
         var items = await _profileService.LoadProfilesAsync();
         Profiles = new ObservableCollection<ProfileItemViewModel>(items.Select(p => new ProfileItemViewModel(p)));
+        ApplyProfileFilter();
 
         if (Profiles.Count > 0)
         {
             SelectedProfile = Profiles[0];
+        }
+
+        if (ProfileUnderEdit is not null)
+        {
+            ProfileUnderEdit = Profiles.FirstOrDefault(p => string.Equals(p.Name, ProfileUnderEdit.Name, StringComparison.Ordinal));
         }
     }
 
@@ -1117,6 +1168,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void OnModsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        NotifyModStatsChanged();
+
         if (e.NewItems is not null)
         {
             foreach (var item in e.NewItems.OfType<ModItemViewModel>())
@@ -1125,6 +1178,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 {
                     if (args.PropertyName == nameof(ModItemViewModel.IsEnabled))
                     {
+                        NotifyModStatsChanged();
+                        if (_isLoadingProfileSelectionIntoToggles)
+                        {
+                            return;
+                        }
+
+                        if (IsAddModSelectionMode && ProfileUnderEdit is not null)
+                        {
+                            StatusMessage = "Profile selection changed (saving...)";
+                            QueueAddModeProfileSave();
+                            return;
+                        }
+
                         StatusMessage = "Pending changes";
                         if (!_isProjectingDependencyStates)
                         {
@@ -1147,6 +1213,62 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _dependencyPreviewCts?.Dispose();
         _dependencyPreviewCts = new CancellationTokenSource();
         _ = ProjectDependenciesLiveAsync(_dependencyPreviewCts.Token);
+    }
+
+    private void QueueAddModeProfileSave()
+    {
+        _addModeProfileSaveCts?.Cancel();
+        _addModeProfileSaveCts?.Dispose();
+        _addModeProfileSaveCts = new CancellationTokenSource();
+        _ = SaveAddModeSelectionToProfileAsync(_addModeProfileSaveCts.Token);
+    }
+
+    private void CancelAddModeProfileSave()
+    {
+        _addModeProfileSaveCts?.Cancel();
+        _addModeProfileSaveCts?.Dispose();
+        _addModeProfileSaveCts = null;
+    }
+
+    private async Task SaveAddModeSelectionToProfileAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(320, cancellationToken);
+            var profile = ProfileUnderEdit;
+            if (profile is null || !IsAddModSelectionMode)
+            {
+                return;
+            }
+
+            var enabled = _allMods
+                .Where(m => m.IsEnabled && IsNumericWorkshopId(m.WorkshopId))
+                .Select(m => m.WorkshopId)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            var source = profile.Source;
+            var updated = new ModProfile
+            {
+                Name = source.Name,
+                Notes = source.Notes,
+                CreatedAt = source.CreatedAt,
+                EnabledMods = enabled,
+                IncludedMods = enabled.ToList()
+            };
+
+            await _profileService.SaveProfileAsync(updated, cancellationToken);
+            await LoadProfilesAsync();
+            ProfileUnderEdit = Profiles.FirstOrDefault(p => string.Equals(p.Name, source.Name, StringComparison.Ordinal));
+            StatusMessage = $"Saved {enabled.Count} selected mods to profile '{source.Name}'";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            StatusMessage = "Failed to save profile selection";
+        }
     }
 
     private async Task ProjectDependenciesLiveAsync(CancellationToken cancellationToken)
@@ -1384,6 +1506,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         FilteredMods = new ObservableCollection<ModItemViewModel>(working.OrderBy(m => m.ModName, StringComparer.OrdinalIgnoreCase));
+        NotifyModStatsChanged();
+    }
+
+    private void ApplyProfileFilter()
+    {
+        var query = ProfileSearchQuery?.Trim() ?? string.Empty;
+        IEnumerable<ProfileItemViewModel> working = Profiles;
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            working = working.Where(p =>
+                p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                p.Notes.Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        FilteredProfiles = new ObservableCollection<ProfileItemViewModel>(
+            working.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase));
     }
 
     private static async Task<bool> TryDeleteDirectoryWithRetryAsync(string folderPath)

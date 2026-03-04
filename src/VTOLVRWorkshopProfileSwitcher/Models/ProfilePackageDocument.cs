@@ -16,4 +16,5 @@ public sealed class ProfilePackageProfile
     public string Name { get; init; } = string.Empty;
     public string Notes { get; init; } = string.Empty;
     public List<string> EnabledWorkshopIds { get; init; } = new();
+    public List<string> IncludedWorkshopIds { get; init; } = new();
 }

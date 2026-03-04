@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.SettingsPageView"
+             x:DataType="pages:SettingsPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <TextBlock Text="Settings" Classes="section-title" />
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,12,0,0">
+      <Border Classes="card-panel" Padding="12">
+        <StackPanel Spacing="10">
+          <TextBlock Text="General" Classes="section-title" />
+          <CheckBox Content="Open Steam page after delete" IsChecked="{Binding Shell.OpenSteamPageAfterDelete}" />
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Column="1" Classes="card-panel" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Application" Classes="section-title" />
+          <TextBlock Text="{Binding Shell.AppAuthor, StringFormat=Author: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.AppCreatedOn, StringFormat=Created: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.CurrentVersionText, StringFormat=Current Version: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.CurrentVersionIdText, StringFormat=Build Id: {0}}" Classes="text-muted" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Updates" Classes="section-title" />
+        <CheckBox Content="Auto install updates" IsChecked="{Binding Shell.AutoInstallUpdates}" />
+        <TextBlock Text="{Binding Shell.UpdateStatusText}" TextWrapping="Wrap" Classes="text-muted" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Check For Update" Classes="primary-button" Command="{Binding Shell.CheckForUpdatesCommand}" />
+          <Button Content="Install Update" Classes="warning-button" IsVisible="{Binding Shell.CanAutoInstallUpdate}" Command="{Binding Shell.DownloadAndInstallUpdateCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

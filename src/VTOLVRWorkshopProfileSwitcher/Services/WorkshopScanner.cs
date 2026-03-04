@@ -57,7 +57,9 @@ public sealed class WorkshopScanner
                     FullPath = dir,
                     IsEnabled = enabled,
                     DisplayName = displayName,
-                    ThumbnailPath = thumbnail
+                    ThumbnailPath = thumbnail,
+                    LocalVersion = metadata.LocalVersion,
+                    Author = metadata.Author
                 });
             }
             catch
@@ -138,7 +140,7 @@ public sealed class WorkshopScanner
         return false;
     }
 
-    private static async Task<(string? DisplayName, string? PreviewImageUrl)> TryReadMetadataAsync(string modPath, CancellationToken cancellationToken)
+    private static async Task<(string? DisplayName, string? PreviewImageUrl, string? LocalVersion, string? Author)> TryReadMetadataAsync(string modPath, CancellationToken cancellationToken)
     {
         var manifestCandidates = GetMetadataCandidates(modPath);
 
@@ -153,6 +155,10 @@ public sealed class WorkshopScanner
                     "name", "title", "displayName", "bundleName", "modName", "pluginName");
                 var previewImageUrl = FindStringByKeyRecursive(root, 0,
                     "previewImageUrl", "previewUrl", "imageUrl", "thumbnailUrl", "iconUrl", "previewImage", "thumbnail");
+                var localVersion = FindStringByKeyRecursive(root, 0,
+                    "version", "modVersion", "pluginVersion", "bundleVersion", "semanticVersion");
+                var author = FindStringByKeyRecursive(root, 0,
+                    "author", "creator", "owner", "publisher");
 
                 if (!string.IsNullOrWhiteSpace(previewImageUrl) &&
                     !Uri.TryCreate(previewImageUrl, UriKind.Absolute, out _))
@@ -166,9 +172,12 @@ public sealed class WorkshopScanner
                     displayName = PrettifyName(displayName);
                 }
 
-                if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(previewImageUrl))
+                if (!string.IsNullOrWhiteSpace(displayName) ||
+                    !string.IsNullOrWhiteSpace(previewImageUrl) ||
+                    !string.IsNullOrWhiteSpace(localVersion) ||
+                    !string.IsNullOrWhiteSpace(author))
                 {
-                    return (displayName, previewImageUrl);
+                    return (displayName, previewImageUrl, localVersion?.Trim(), author?.Trim());
                 }
             }
             catch
@@ -177,7 +186,7 @@ public sealed class WorkshopScanner
             }
         }
 
-        return (null, null);
+        return (null, null, null, null);
     }
 
     private static List<string> GetMetadataCandidates(string modPath)
@@ -524,22 +533,17 @@ public sealed class WorkshopScanner
 
     private static async Task EnrichMissingMetadataFromSteamAsync(List<WorkshopMod> mods, CancellationToken cancellationToken)
     {
-        var needsEnrichment = mods
-            .Where(mod =>
-                IsGenericDisplayName(mod.DisplayName, mod.WorkshopId) ||
-                IsLikelyDerivedName(mod.DisplayName) ||
-                string.IsNullOrWhiteSpace(mod.ThumbnailPath) ||
-                IsLikelyBadThumbnail(mod.ThumbnailPath))
+        var workshopIds = mods
             .Select(mod => mod.WorkshopId)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (needsEnrichment.Count == 0)
+        if (workshopIds.Count == 0)
         {
             return;
         }
 
-        var steamDetails = await FetchSteamWorkshopDetailsAsync(needsEnrichment, cancellationToken);
+        var steamDetails = await FetchSteamWorkshopDetailsAsync(workshopIds, cancellationToken);
         if (steamDetails.Count == 0)
         {
             return;
@@ -552,8 +556,7 @@ public sealed class WorkshopScanner
                 continue;
             }
 
-            if ((IsGenericDisplayName(mod.DisplayName, mod.WorkshopId) || IsLikelyDerivedName(mod.DisplayName)) &&
-                !string.IsNullOrWhiteSpace(detail.Title))
+            if (!string.IsNullOrWhiteSpace(detail.Title))
             {
                 mod.DisplayName = PrettifyName(detail.Title);
             }
@@ -568,6 +571,16 @@ public sealed class WorkshopScanner
             {
                 mod.DownloadCount = detail.Downloads.Value;
             }
+
+            if (detail.LastUpdated.HasValue)
+            {
+                mod.LastUpdatedUtc = detail.LastUpdated.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(detail.RemoteVersion))
+            {
+                mod.RemoteVersion = detail.RemoteVersion;
+            }
         }
     }
 
@@ -577,11 +590,11 @@ public sealed class WorkshopScanner
                string.IsNullOrWhiteSpace(displayName);
     }
 
-    private static async Task<Dictionary<string, (string? Title, string? PreviewUrl, long? Downloads)>> FetchSteamWorkshopDetailsAsync(
+    private static async Task<Dictionary<string, (string? Title, string? PreviewUrl, long? Downloads, DateTimeOffset? LastUpdated, string? RemoteVersion)>> FetchSteamWorkshopDetailsAsync(
         IReadOnlyList<string> workshopIds,
         CancellationToken cancellationToken)
     {
-        var result = new Dictionary<string, (string? Title, string? PreviewUrl, long? Downloads)>(StringComparer.Ordinal);
+        var result = new Dictionary<string, (string? Title, string? PreviewUrl, long? Downloads, DateTimeOffset? LastUpdated, string? RemoteVersion)>(StringComparer.Ordinal);
         const int batchSize = 40;
 
         for (var i = 0; i < workshopIds.Count; i += batchSize)
@@ -634,7 +647,13 @@ public sealed class WorkshopScanner
                     var title = FindStringByKeyRecursive(detail, 0, "title");
                     var preview = FindStringByKeyRecursive(detail, 0, "preview_url");
                     var downloads = FindInt64ByKeyRecursive(detail, 0, "subscriptions", "lifetime_subscriptions");
-                    result[id] = (title, preview, downloads);
+                    DateTimeOffset? lastUpdated = null;
+                    if (FindInt64ByKeyRecursive(detail, 0, "time_updated") is long ts && ts > 0)
+                    {
+                        lastUpdated = DateTimeOffset.FromUnixTimeSeconds(ts);
+                    }
+                    var remoteVersion = TryReadRemoteVersion(detail);
+                    result[id] = (title, preview, downloads, lastUpdated, remoteVersion);
                 }
             }
             catch
@@ -644,6 +663,26 @@ public sealed class WorkshopScanner
         }
 
         return result;
+    }
+
+    private static string? TryReadRemoteVersion(JsonElement detail)
+    {
+        var rawMetadata = FindStringByKeyRecursive(detail, 0, "metadata");
+        if (string.IsNullOrWhiteSpace(rawMetadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(rawMetadata);
+            var version = FindStringByKeyRecursive(doc.RootElement, 0, "version", "modVersion", "pluginVersion");
+            return string.IsNullOrWhiteSpace(version) ? null : version.Trim();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static bool LooksLikeImage(byte[] bytes)

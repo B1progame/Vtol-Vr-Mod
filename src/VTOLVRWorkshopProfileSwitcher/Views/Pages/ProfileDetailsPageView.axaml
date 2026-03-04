@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ProfileDetailsPageView"
+             x:DataType="pages:ProfileDetailsPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+      <Button Content="&lt; Back" Classes="secondary-button" Command="{Binding Shell.BackToProfilesCommand}" />
+      <TextBlock Grid.Column="1" Text="{Binding Profile.Name}" Classes="section-title" VerticalAlignment="Center" />
+      <Button Grid.Column="2" Content="Add Mod" Classes="primary-button" Command="{Binding Shell.OpenAddModFlowCommand}" />
+      <Button Grid.Column="3" Margin="8,0,0,0" Content="Reload + Check Deps" Classes="secondary-button" Command="{Binding Shell.ReloadProfileModsAndCheckDependenciesCommand}" />
+      <Button Grid.Column="4" Margin="8,0,0,0" Content="{Binding Shell.PlayModdedButtonText}" Classes="success-button" IsEnabled="{Binding Shell.CanLaunchGame}" Command="{Binding Shell.PlayModdedCommand}" />
+    </Grid>
+
+    <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid ColumnDefinitions="2*,2*,Auto,Auto">
+        <TextBox Text="{Binding Shell.ProfileNameInput}" Watermark="Profile name" />
+        <TextBox Grid.Column="1" Text="{Binding Shell.ProfileNotesInput}" Watermark="Profile notes" />
+        <Button Grid.Column="2" Content="Rename / Save" Classes="primary-button" Command="{Binding Shell.RenameSelectedProfileCommand}" />
+        <Button Grid.Column="3" Content="Apply Profile" Classes="secondary-button" Command="{Binding Shell.ApplySelectedProfileCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="*,Auto">
+        <TextBlock Text="Mods In Profile" Classes="section-title" />
+        <CheckBox Grid.Column="1"
+                  Content="Show Auto Dependencies"
+                  IsChecked="{Binding Shell.ShowProfileDependencies}"
+                  VerticalAlignment="Center" />
+        <TextBox Grid.Row="1" Margin="0,10,0,0" Text="{Binding Shell.ProfileModsSearchQuery}" Watermark="Search mods in this profile..." />
+        <ScrollViewer Grid.Row="2" Grid.ColumnSpan="2" Margin="0,10,0,0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Shell.FilteredProfileMods}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemWidth="254" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ProfileModEntryViewModel">
+                <controls:ModCardView ThumbnailImage="{Binding InstalledMod.ThumbnailImage}"
+                                      Title="{Binding Name}"
+                                      Subtitle="{Binding WorkshopId}"
+                                      ShowToggle="False"
+                                      ShowStatusText="True"
+                                      StatusText="{Binding ProfileStateText}"
+                                      DetailsCommand="{Binding $parent[UserControl].DataContext.Shell.SelectProfileModCommand}"
+                                      DetailsCommandParameter="{Binding .}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <TextBlock Grid.Row="3" Text="{Binding Shell.ProfileUnderEditText}" Classes="text-muted" Margin="0,12,0,0" />
+  </Grid>
+</UserControl>

@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ModsPageView"
+             x:DataType="pages:ModsPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Text="Mods" Classes="section-title" VerticalAlignment="Center" />
+        <Border Grid.Column="1" Classes="card-panel" Margin="12,0,0,0" Padding="10,6" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="{Binding Shell.TotalModsCount, StringFormat=Total: {0}}" Classes="text-muted" />
+            <TextBlock Text="{Binding Shell.EnabledModsCount, StringFormat=Enabled: {0}}" Classes="text-muted" />
+          </StackPanel>
+        </Border>
+        <TextBox Grid.Column="2" Margin="8,0,0,0" Text="{Binding Shell.SearchQuery}" Watermark="Search mods..." />
+        <Button Grid.Column="3" Margin="8,0,0,0" Content="Dupe Cleaner" Classes="warning-button" Command="{Binding Shell.CleanDuplicateModsCommand}" />
+        <Button Grid.Column="4" Margin="8,0,0,0" Content="Rescan" Classes="primary-button" Command="{Binding Shell.RefreshModsCommand}" />
+        <Button Grid.Column="5" Margin="8,0,0,0" Content="Enable All" Classes="secondary-button" Command="{Binding Shell.EnableAllCommand}" />
+        <Button Grid.Column="6" Margin="8,0,0,0" Content="Disable All" Classes="secondary-button" Command="{Binding Shell.DisableAllCommand}" />
+        <Button Grid.Column="7" Margin="8,0,0,0" Content="Add Mods" Classes="primary-button" Command="{Binding Shell.OpenAddModsPageCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0" IsVisible="{Binding Shell.HasMissingMods}">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock Text="{Binding Shell.MissingModsContext, StringFormat=Missing Mods ({0})}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Shell.MissingModsCount, StringFormat={}{0} IDs missing locally}" Classes="text-muted" />
+        </StackPanel>
+        <Button Grid.Column="1" Margin="8,0,0,0" Content="Open Next Missing" Classes="warning-button" Command="{Binding Shell.OpenNextMissingModCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding Shell.FilteredMods}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemWidth="254" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ModItemViewModel">
+              <controls:ModCardView ThumbnailImage="{Binding ThumbnailImage}"
+                                    Title="{Binding ModName}"
+                                    Subtitle="{Binding WorkshopId}"
+                                    ShowToggle="{Binding $parent[UserControl].DataContext.Shell.IsAddModSelectionMode}"
+                                    ModEnabled="{Binding IsEnabled, Mode=TwoWay}"
+                                    SecondaryActionText="Add"
+                                    ShowSecondaryAction="False"
+                                    SecondaryActionCommand="{Binding $parent[UserControl].DataContext.Shell.AddSelectedModToCurrentProfileCommand}"
+                                    SecondaryActionCommandParameter="{Binding .}"
+                                    TertiaryActionText="Delete"
+                                    ShowTertiaryAction="False"
+                                    TertiaryActionCommand="{Binding $parent[UserControl].DataContext.Shell.DeleteModCommand}"
+                                    TertiaryActionCommandParameter="{Binding .}"
+                                    DetailsCommand="{Binding $parent[UserControl].DataContext.Shell.SelectModCommand}"
+                                    DetailsCommandParameter="{Binding .}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

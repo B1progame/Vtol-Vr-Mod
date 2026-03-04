@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.DashboardPageView"
+             x:DataType="pages:DashboardPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+        <TextBlock Text="{Binding Shell.ActiveWorkshopPath, StringFormat=Workshop path: {0}}" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Edit Path" Classes="secondary-button" Command="{Binding Shell.NavigateSettingsCommand}" />
+        <Button Grid.Column="2" Content="Rescan" Classes="primary-button" Command="{Binding Shell.RefreshModsCommand}" />
+        <Button Grid.Column="3" Content="Details" Classes="secondary-button" Command="{Binding Shell.ToggleDetailsCommand}" />
+        <Button Grid.Column="4" Content="Settings" Classes="secondary-button" Command="{Binding Shell.NavigateSettingsCommand}" MinWidth="74" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" Margin="0,12,0,0">
+      <Border Classes="kpi-card kpi-red" Padding="14">
+        <StackPanel>
+          <TextBlock Text="Total Mods" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.TotalModsCount}" Classes="kpi-value" />
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Classes="kpi-card kpi-green" Padding="14">
+        <StackPanel>
+          <TextBlock Text="Enabled Mods" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.EnabledModsCount}" Classes="kpi-value" />
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="2" Classes="kpi-card kpi-orange" Padding="14">
+        <StackPanel>
+          <TextBlock Text="Updates Available" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.UpdatesAvailableCount}" Classes="kpi-value" />
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="3" Classes="kpi-card kpi-blue" Padding="14">
+        <StackPanel>
+          <TextBlock Text="Missing Mods" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.MissingModsCount}" Classes="kpi-value" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" Margin="0,12,0,0">
+      <Button Content="Apply Profile" Classes="secondary-button" Command="{Binding Shell.ApplySelectedProfileCommand}" />
+      <Button Grid.Column="1" Content="Restore Snapshot" Classes="secondary-button" Command="{Binding Shell.RestoreLastStateCommand}" />
+      <Button Grid.Column="2" Content="Update All" Classes="warning-button" Command="{Binding Shell.RefreshModsCommand}" />
+    </Grid>
+
+    <Border Grid.Row="3" Classes="card-panel" Padding="14" Margin="0,12,0,0">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Launch VTOL VR" Classes="section-title" />
+        <Grid ColumnDefinitions="*,*">
+          <Button Content="{Binding Shell.PlayModdedButtonText}" Classes="success-button big-play-button" IsEnabled="{Binding Shell.CanLaunchGame}" Command="{Binding Shell.PlayModdedCommand}" />
+          <Button Grid.Column="1" Content="{Binding Shell.PlayVanillaButtonText}" Classes="primary-button big-play-button" IsEnabled="{Binding Shell.CanLaunchGame}" Command="{Binding Shell.PlayVanillaCommand}" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="4" Classes="card-panel" Padding="14" Margin="0,12,0,0">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="Recent Logs" Classes="section-title" />
+          <Button Grid.Column="1" Content="View All Logs" Classes="secondary-button" Command="{Binding Shell.NavigateLogsCommand}" />
+        </Grid>
+        <ListBox Grid.Row="1" ItemsSource="{Binding Shell.RecentLogs}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:LogEntryViewModel">
+              <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Grid.Row="2" Text="{Binding Shell.StatusMessage}" Classes="text-muted" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

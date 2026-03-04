@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+        x:Class="VTOLVRWorkshopProfileSwitcher.Views.ProfilePickerWindow"
+        x:DataType="vm:ProfilePickerDialogViewModel"
+        x:CompileBindings="False"
+        Width="520"
+        Height="420"
+        MinWidth="460"
+        MinHeight="340"
+        Title="Choose Profile"
+        CanResize="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        mc:Ignorable="d">
+  <Border Classes="card-panel" Margin="14" Padding="14">
+    <Grid RowDefinitions="Auto,*,Auto">
+      <StackPanel Spacing="2">
+        <TextBlock Text="Select Profile" Classes="section-title" />
+        <TextBlock Text="Choose a profile for modded launch." Classes="text-muted" />
+      </StackPanel>
+
+      <ListBox Grid.Row="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ProfileItemViewModel">
+            <Border Classes="card-panel" Padding="10" Margin="0,0,0,8">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Summary}" Classes="text-muted" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Text="{Binding SelectedProfile.Name, StringFormat=Selected: {0}}" VerticalAlignment="Center" Classes="text-muted" />
+        <Button Grid.Column="1" Content="Cancel" Classes="secondary-button" Click="OnCancelClicked" />
+        <Button Grid.Column="2" Content="Use Profile" Classes="primary-button" Click="OnUseClicked" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.LogsPageView"
+             x:DataType="pages:LogsPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBlock Text="All Logs" Classes="section-title" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Margin="8,0,0,0" Content="Refresh Logs" Classes="secondary-button" Command="{Binding Shell.ReloadLogsCommand}" />
+        <Button Grid.Column="2"
+                Margin="8,0,0,0"
+                Content="Delete Selected"
+                Classes="danger-button"
+                Command="{Binding Shell.DeleteSelectedLogCommand}"
+                CommandParameter="{Binding #LogsList.SelectedItems}" />
+        <Button Grid.Column="3" Margin="8,0,0,0" Content="Delete All" Classes="danger-button" Command="{Binding Shell.DeleteAllLogsCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <ListBox x:Name="LogsList"
+               ItemsSource="{Binding Shell.AllLogs}"
+               SelectedItem="{Binding Shell.SelectedLogEntry}"
+               SelectionMode="Multiple">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:LogEntryViewModel">
+            <Border Classes="card-panel" Padding="8" Margin="0,0,0,6">
+              <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+  </Grid>
+</UserControl>

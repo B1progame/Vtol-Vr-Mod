@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.BackupsPageView"
+             x:DataType="pages:BackupsPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+        <TextBlock Text="Backups / Snapshots" Classes="section-title" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Refresh" Classes="secondary-button" Command="{Binding Shell.ReloadBackupsCommand}" />
+        <Button Grid.Column="2" Margin="8,0,0,0" Content="Create Backup" Classes="primary-button" Command="{Binding Shell.CreateBackupCommand}" />
+        <Button Grid.Column="3"
+                Margin="8,0,0,0"
+                Content="Delete Selected"
+                Classes="danger-button"
+                Command="{Binding Shell.DeleteSelectedBackupCommand}"
+                CommandParameter="{Binding #BackupsList.SelectedItems}" />
+        <Button Grid.Column="4" Margin="8,0,0,0" Content="Restore Selected" Classes="warning-button" Command="{Binding Shell.RestoreSelectedBackupCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid RowDefinitions="*,Auto">
+        <ListBox x:Name="BackupsList"
+                 ItemsSource="{Binding Shell.Backups}"
+                 SelectedItem="{Binding Shell.SelectedBackup}"
+                 SelectionMode="Multiple">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:BackupItemViewModel">
+              <Border Classes="card-panel" Padding="10" Margin="0,0,0,8">
+                <StackPanel>
+                  <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding DisplayTimestamp}" Classes="text-muted" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Grid.Row="1" Text="{Binding Shell.StatusMessage}" Classes="text-muted" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

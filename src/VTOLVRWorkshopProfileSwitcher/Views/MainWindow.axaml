@@ -3,533 +3,189 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+        xmlns:conv="clr-namespace:VTOLVRWorkshopProfileSwitcher.Converters"
+        xmlns:pagesVm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+        xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Pages"
         mc:Ignorable="d"
         x:Class="VTOLVRWorkshopProfileSwitcher.Views.MainWindow"
         x:Name="RootWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="VTOL VR Workshop Profile Switcher"
-        Width="1500"
-        Height="920"
-        MinWidth="1100"
-        MinHeight="700"
-        Background="#000000"
+        x:CompileBindings="False"
+        Title="VTOL VR Mod Profiler"
+        Width="1560"
+        Height="940"
+        MinWidth="1200"
+        MinHeight="760"
+        Background="{DynamicResource WindowBackgroundBrush}"
         Opacity="0">
-
   <Window.Transitions>
     <Transitions>
-      <DoubleTransition Property="Opacity" Duration="0:0:0.28" Easing="CircularEaseOut" />
+      <DoubleTransition Property="Opacity" Duration="0:0:0.24" Easing="CircularEaseOut" />
     </Transitions>
   </Window.Transitions>
 
-  <Window.Styles>
-    <Style Selector="Window">
-      <Setter Property="FontFamily" Value="Bahnschrift, Segoe UI, Arial" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Foreground" Value="#E7EDF9" />
-    </Style>
+  <Window.DataTemplates>
+    <DataTemplate DataType="pagesVm:DashboardPageViewModel">
+      <pages:DashboardPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:ProfilesPageViewModel">
+      <pages:ProfilesPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:ProfileDetailsPageViewModel">
+      <pages:ProfileDetailsPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:ModsPageViewModel">
+      <pages:ModsPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:BackupsPageViewModel">
+      <pages:BackupsPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:LogsPageViewModel">
+      <pages:LogsPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:SettingsPageViewModel">
+      <pages:SettingsPageView />
+    </DataTemplate>
+  </Window.DataTemplates>
 
-    <Style Selector="Border.chrome-panel">
-      <Setter Property="Background" Value="#B20A0F1C" />
-      <Setter Property="BorderBrush" Value="#66FF1A1A" />
-      <Setter Property="BorderThickness" Value="1.5" />
-      <Setter Property="CornerRadius" Value="8" />    </Style>
+  <Window.Resources>
+    <conv:BoolToGridLengthConverter x:Key="DetailsWidthConverter" TruePixels="420" FalsePixels="0" />
+  </Window.Resources>
 
-    <Style Selector="Border.card-panel">
-      <Setter Property="Background" Value="#BF081224" />
-      <Setter Property="BorderBrush" Value="#4DFF1A1A" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />      <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
-      <Setter Property="RenderTransform">
-        <ScaleTransform ScaleX="1" ScaleY="1" />
-      </Setter>
-      <Setter Property="Transitions">
-        <Transitions>
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Border.card-panel:pointerover">
-      <Setter Property="RenderTransform" Value="scale(1.02)" />
-      <Setter Property="BorderBrush" Value="#C9FF1A1A" />    </Style>
-
-    <Style Selector="Button">
-      <Setter Property="CornerRadius" Value="7" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="BorderBrush" Value="#55FF1A1A" />
-      <Setter Property="Background" Value="#CC070E1A" />
-      <Setter Property="Foreground" Value="#EEF2FB" />
-      <Setter Property="Padding" Value="12,7" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.18" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Button:pointerover">
-      <Setter Property="Background" Value="#E0121423" />
-      <Setter Property="BorderBrush" Value="#D9FF1A1A" />    </Style>
-
-    <Style Selector="Button:pressed">
-      <Setter Property="Background" Value="#CC3A0B10" />
-      <Setter Property="BorderBrush" Value="#FFFF4646" />    </Style>
-
-    <Style Selector="Button.compact-profile">
-      <Setter Property="Padding" Value="8,5" />
-      <Setter Property="FontSize" Value="12" />
-    </Style>
-
-    <Style Selector="Button.rainbow-update">
-      <Setter Property="Background" Value="#CCFF3B30" />
-      <Setter Property="BorderBrush" Value="#FFFFB74D" />
-      <Setter Property="BorderThickness" Value="1.5" />
-      <Setter Property="Foreground" Value="#FFFFFFFF" />
-      <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Padding" Value="12,9" />
-      <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
-      <Setter Property="RenderTransform">
-        <ScaleTransform ScaleX="1" ScaleY="1" />
-      </Setter>
-      <Style.Animations>
-        <Animation Duration="0:0:3.2" IterationCount="Infinite">
-          <KeyFrame Cue="0%">
-            <Setter Property="Background" Value="#CCFF3B30" />
-            <Setter Property="BorderBrush" Value="#FFFFA65A" />
-          </KeyFrame>
-          <KeyFrame Cue="20%">
-            <Setter Property="Background" Value="#CCFF9800" />
-            <Setter Property="BorderBrush" Value="#FFFFE082" />
-          </KeyFrame>
-          <KeyFrame Cue="40%">
-            <Setter Property="Background" Value="#CC66BB6A" />
-            <Setter Property="BorderBrush" Value="#FFA5D6A7" />
-          </KeyFrame>
-          <KeyFrame Cue="60%">
-            <Setter Property="Background" Value="#CC29B6F6" />
-            <Setter Property="BorderBrush" Value="#FF81D4FA" />
-          </KeyFrame>
-          <KeyFrame Cue="80%">
-            <Setter Property="Background" Value="#CC7E57C2" />
-            <Setter Property="BorderBrush" Value="#FFB39DDB" />
-          </KeyFrame>
-          <KeyFrame Cue="100%">
-            <Setter Property="Background" Value="#CCE91E63" />
-            <Setter Property="BorderBrush" Value="#FFF48FB1" />
-          </KeyFrame>
-        </Animation>
-      </Style.Animations>
-    </Style>
-
-    <Style Selector="Button.rainbow-update:pointerover">
-      <Setter Property="RenderTransform" Value="scale(1.03)" />
-    </Style>
-
-    <Style Selector="Border.update-badge">
-      <Setter Property="Background" Value="#FFF2D232" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="4,0" />
-      <Setter Property="MinWidth" Value="16" />
-      <Setter Property="HorizontalAlignment" Value="Right" />
-      <Setter Property="VerticalAlignment" Value="Top" />
-      <Style.Animations>
-        <Animation Duration="0:0:1.1" IterationCount="Infinite" PlaybackDirection="Alternate">
-          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.55" /></KeyFrame>
-          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-        </Animation>
-      </Style.Animations>
-    </Style>
-
-    <Style Selector="Border.settings-panel">
-      <Setter Property="Background" Value="#F0101826" />
-      <Setter Property="BorderBrush" Value="#CCFF1A1A" />
-      <Setter Property="BorderThickness" Value="1.4" />
-    </Style>
-
-    <Style Selector="TextBox">
-      <Setter Property="Background" Value="#CC040912" />
-      <Setter Property="BorderBrush" Value="#44FF1A1A" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="#E8EDF7" />
-      <Setter Property="CaretBrush" Value="#FF3A3A" />
-      <Setter Property="SelectionBrush" Value="#66FF1A1A" />
-    </Style>
-
-    <Style Selector="TextBox:pointerover">
-      <Setter Property="BorderBrush" Value="#99FF1A1A" />
-    </Style>
-
-    <Style Selector="ToggleSwitch.mod-toggle">
-      <Setter Property="OnContent" Value="ENABLED" />
-      <Setter Property="OffContent" Value="DISABLED" />
-    </Style>
-
-    <Style Selector="ScrollBar">
-      <Setter Property="Background" Value="#2A040B17" />
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="AllowAutoHide" Value="False" />
-    </Style>
-
-    <Style Selector="ScrollBar:vertical">
-      <Setter Property="Width" Value="12" />
-    </Style>
-
-    <Style Selector="ScrollBar:horizontal">
-      <Setter Property="Height" Value="12" />
-    </Style>
-
-    <Style Selector="ScrollViewer /template/ ScrollBar#PART_VerticalScrollBar">
-      <Setter Property="Width" Value="12" />
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="AllowAutoHide" Value="False" />
-      <Setter Property="Background" Value="#3A061225" />
-    </Style>
-
-    <Style Selector="ScrollBar /template/ Thumb">
-      <Setter Property="Background" Value="#CCFF2A2A" />
-      <Setter Property="MinHeight" Value="30" />
-      <Setter Property="CornerRadius" Value="6" />
-    </Style>
-
-    <Style Selector="ScrollBar /template/ Thumb:pointerover">
-      <Setter Property="Background" Value="#EEFF4A4A" />
-    </Style>
-
-    <Style Selector="ScrollBar /template/ Thumb:pressed">
-      <Setter Property="Background" Value="#FFFF6A6A" />
-    </Style>
-
-    <Style Selector="Rectangle.red-slit">
-      <Setter Property="Fill" Value="#55FF1A1A" />
-      <Setter Property="Opacity" Value="0.14" />
-      <Style.Animations>
-        <Animation Duration="0:0:3.8" IterationCount="Infinite" PlaybackDirection="Alternate">
-          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.08" /></KeyFrame>
-          <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.1" /></KeyFrame>
-        </Animation>
-      </Style.Animations>
-    </Style>
-
-    <Style Selector="Ellipse.spark">
-      <Setter Property="Fill" Value="#AAFF2A2A" />
-      <Setter Property="Opacity" Value="0.20" />
-      <Style.Animations>
-        <Animation Duration="0:0:4.6" IterationCount="Infinite" PlaybackDirection="Alternate">
-          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.05" /></KeyFrame>
-          <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.26" /></KeyFrame>
-          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.07" /></KeyFrame>
-        </Animation>
-      </Style.Animations>
-    </Style>
-
-    <Style Selector="Window.design-blue Border.chrome-panel">
-      <Setter Property="BorderBrush" Value="#663A9EFF" />
-    </Style>
-    <Style Selector="Window.design-blue Border.card-panel">
-      <Setter Property="BorderBrush" Value="#4D3A9EFF" />
-    </Style>
-    <Style Selector="Window.design-blue Button">
-      <Setter Property="BorderBrush" Value="#553A9EFF" />
-    </Style>
-    <Style Selector="Window.design-blue Button:pointerover">
-      <Setter Property="BorderBrush" Value="#C95DB1FF" />
-    </Style>
-    <Style Selector="Window.design-blue TextBox">
-      <Setter Property="BorderBrush" Value="#445DA8FF" />
-    </Style>
-    <Style Selector="Window.design-blue Rectangle.red-slit">
-      <Setter Property="Fill" Value="#5562B6FF" />
-    </Style>
-    <Style Selector="Window.design-blue Ellipse.spark">
-      <Setter Property="Fill" Value="#AA76BEFF" />
-    </Style>
-  </Window.Styles>
-
+  <Border Classes="shell-frame" Margin="14">
   <Grid>
-    <Border>
-      <Border.Background>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-          <GradientStop Color="#000000" Offset="0" />
-          <GradientStop Color="#050A13" Offset="0.35" />
-          <GradientStop Color="#0A0F1C" Offset="1" />
-        </LinearGradientBrush>
-      </Border.Background>
-    </Border>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="272" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="{Binding IsDetailsOpen, Converter={StaticResource DetailsWidthConverter}}" />
+    </Grid.ColumnDefinitions>
 
-    <Canvas IsHitTestVisible="False" Opacity="0.9">
-      <Rectangle Classes="red-slit" Width="1500" Height="2" Canvas.Top="110" Canvas.Left="0" />
-      <Rectangle Classes="red-slit" Width="1500" Height="1" Canvas.Top="248" Canvas.Left="0" />
-      <Rectangle Classes="red-slit" Width="1500" Height="2" Canvas.Top="470" Canvas.Left="0" />
-      <Rectangle Classes="red-slit" Width="1500" Height="1" Canvas.Top="720" Canvas.Left="0" />
+    <Border Grid.Column="0" Classes="sidebar-panel" Padding="12" Margin="0,0,12,0">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <TextBlock Text="VTOL VR Mod Profiler"
+                   FontSize="23"
+                   FontWeight="Bold"
+                   Height="84"
+                   Margin="4,8,4,12"
+                   VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   LineHeight="28"
+                   MaxWidth="236" />
 
-      <Ellipse Classes="spark" Width="3" Height="3" Canvas.Left="210" Canvas.Top="170" />
-      <Ellipse Classes="spark" Width="2" Height="2" Canvas.Left="720" Canvas.Top="300" />
-      <Ellipse Classes="spark" Width="3" Height="3" Canvas.Left="1200" Canvas.Top="520" />
-      <Ellipse Classes="spark" Width="2" Height="2" Canvas.Left="960" Canvas.Top="760" />
-      <Ellipse Classes="spark" Width="2" Height="2" Canvas.Left="330" Canvas.Top="640" />
-    </Canvas>
+        <StackPanel Grid.Row="1" Spacing="0">
+          <Button Content="Dashboard" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsDashboardSelected}" Command="{Binding NavigateDashboardCommand}" />
+          <Button Content="Profiles" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsProfilesSelected}" Command="{Binding NavigateProfilesCommand}" />
+          <Button Content="Mods" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsModsSelected}" Command="{Binding NavigateModsCommand}" />
+          <Button Content="Backups" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsBackupsSelected}" Command="{Binding NavigateBackupsCommand}" />
+          <Button Content="Logs" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsLogsSelected}" Command="{Binding NavigateLogsCommand}" />
+          <Button Content="Settings" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsSettingsSelected}" Command="{Binding NavigateSettingsCommand}" />
+        </StackPanel>
 
-    <Grid x:Name="MainContentHost" Margin="16" Opacity="0">
-      <Grid.RenderTransform>
-        <TranslateTransform Y="14" />
-      </Grid.RenderTransform>
-      <Grid.Transitions>
-        <Transitions>
-          <DoubleTransition Property="Opacity" Duration="0:0:0.28" Easing="CircularEaseOut" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.32" Easing="CircularEaseOut" />
-        </Transitions>
-      </Grid.Transitions>
-
-      <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="310,*">
-        <Border Grid.Row="0" Grid.ColumnSpan="2" Classes="chrome-panel" Padding="14">
-          <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" VerticalAlignment="Center">
-            <Grid Width="64" Height="38" VerticalAlignment="Center">
-              <Path Data="M4,30 L25,6 L32,14 L16,34 Z" Fill="#E8FF1A1A" Opacity="0.92" Stretch="Fill" />
-              <Path Data="M30,30 L49,6 L60,14 L42,34 Z" Fill="#CCFF1A1A" Opacity="0.84" Stretch="Fill" />
-              <Path Data="M6,32 L26,8" Stroke="#FFFF6A6A" StrokeThickness="1.3" Opacity="0.7" />
-              <Path Data="M32,32 L50,8" Stroke="#FFFF6A6A" StrokeThickness="1.3" Opacity="0.7" />
-            </Grid>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-              <TextBlock Text="VTOL VR WORKSHOP PROFILE SWITCHER"
-                         FontSize="21"
-                         FontWeight="Bold"
-                         LetterSpacing="1.8" />
-              <TextBlock Text="TACTICAL MOD CONTROL"
-                         Foreground="#90A2BC"
-                         FontSize="11"
-                         LetterSpacing="1.2" />
-            </StackPanel>
-            <Button Grid.Column="2" Content="DETECT" Command="{Binding DetectPathsCommand}" MinWidth="96" />
-            <Button Grid.Column="3" Content="REFRESH" Command="{Binding RefreshModsCommand}" MinWidth="96" />
-            <Button Grid.Column="4" Content="CLEAN DUPES" Command="{Binding CleanDuplicateModsCommand}" MinWidth="116" />
-            <Button Grid.Column="5" Content="RESTORE LAST STATE" Command="{Binding RestoreLastStateCommand}" MinWidth="180" />
-            <Button Grid.Column="6" Command="{Binding ToggleSettingsCommand}" MinWidth="118">
-              <Grid ColumnDefinitions="Auto,Auto">
-                <TextBlock Text="SETTINGS" />
-                <Border Grid.Column="1" Classes="update-badge" Margin="6,0,0,0" IsVisible="{Binding HasUpdateAvailable}">
-                  <TextBlock Text="!" Foreground="#121212" FontWeight="Bold" HorizontalAlignment="Center" />
-                </Border>
-              </Grid>
-            </Button>
-          </Grid>
-        </Border>
-
-        <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="chrome-panel" Padding="10">
-          <Grid ColumnDefinitions="Auto,*,Auto,Auto" VerticalAlignment="Center">
-            <TextBlock Text="WORKSHOP PATH" VerticalAlignment="Center" FontWeight="SemiBold" LetterSpacing="0.8" />
-            <TextBox Grid.Column="1" Text="{Binding ManualWorkshopPath}" Watermark="steamapps\workshop\content\3018410" />
-            <Button Grid.Column="2" Content="USE PATH" Command="{Binding UseManualPathCommand}" MinWidth="100" />
-            <TextBox Grid.Column="3" Width="290" Text="{Binding SearchQuery}" Watermark="SEARCH MODS..." />
-          </Grid>
-        </Border>
-
-        <Border Grid.Row="2" Grid.Column="0" Classes="chrome-panel" Padding="12">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
-            <TextBlock Text="PROFILES" FontSize="17" FontWeight="Bold" LetterSpacing="1.4" />
-            <TextBox Grid.Row="1" Watermark="PROFILE NAME" Text="{Binding ProfileNameInput}" />
-            <TextBox Grid.Row="2" Watermark="NOTES" Text="{Binding ProfileNotesInput}" />
-            <Grid Grid.Row="3">
-              <StackPanel Orientation="Horizontal"
-                          HorizontalAlignment="Stretch"
-                          Spacing="4">
-                <Button Content="ADD PROFILE"
-                        Classes="compact-profile"
-                        Command="{Binding SaveProfileCommand}"
-                        HorizontalAlignment="Stretch" />
-                <Button Content="SAVE"
-                        Classes="compact-profile"
-                        Command="{Binding SaveProfileCommand}"
-                        HorizontalAlignment="Stretch" />
-                <Button Content="DELETE"
-                        Classes="compact-profile"
-                        Command="{Binding DeleteSelectedProfileCommand}"
-                        HorizontalAlignment="Stretch" />
-              </StackPanel>
-            </Grid>
-
-            <Grid Grid.Row="4" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-              <TextBlock Text="Import conflicts:" VerticalAlignment="Center" Foreground="#A8B7CA" Margin="0,0,8,0" />
-              <ComboBox Grid.Column="1"
-                        ItemsSource="{Binding ImportConflictPolicyOptions}"
-                        SelectedItem="{Binding SelectedImportConflictPolicy, Mode=TwoWay}" />
-            </Grid>
-
-            <Grid Grid.Row="5" RowDefinitions="Auto,*,Auto">
-              <WrapPanel Margin="0,0,0,8">
-                <Button Classes="compact-profile" Content="IMPORT PACKAGE" Command="{Binding ImportProfilePackageCommand}" Margin="0,0,4,4" />
-                <Button Classes="compact-profile" Content="EXPORT SELECTED" Command="{Binding ExportSelectedProfilePackageCommand}" Margin="0,0,4,4" />
-                <Button Classes="compact-profile" Content="EXPORT ALL" Command="{Binding ExportAllProfilesPackageCommand}" Margin="0,0,4,4" />
-              </WrapPanel>
-
-              <ListBox ItemsSource="{Binding Profiles}"
-                       Grid.Row="1"
-                       SelectedItem="{Binding SelectedProfile}"
-                       Background="#66030A14"
-                       BorderBrush="#44FF1A1A"
-                       ScrollViewer.VerticalScrollBarVisibility="Visible"
-                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                       ScrollViewer.AllowAutoHide="False">
-                <ListBox.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ProfileItemViewModel">
-                    <Border Classes="card-panel" Padding="8" Margin="0,0,0,8">
-                      <StackPanel>
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding Summary}" Foreground="#A2B2C9" FontSize="12" />
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-              <Button Grid.Row="2" Classes="compact-profile" Content="APPLY SELECTED PROFILE" Command="{Binding ApplySelectedProfileCommand}" />
-            </Grid>
-          </Grid>
-        </Border>
-
-        <Border Grid.Row="2" Grid.Column="1" Classes="chrome-panel" Padding="10">
-          <Grid RowDefinitions="Auto,Auto,*">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
-              <Button Content="ENABLE ALL" Command="{Binding EnableAllCommand}" MinWidth="108" />
-              <Button Grid.Column="1" Content="DISABLE ALL" Command="{Binding DisableAllCommand}" MinWidth="108" />
-              <Button Grid.Column="2" Content="APPLY TOGGLES" Command="{Binding ApplyCurrentTogglesCommand}" MinWidth="136" />
-              <Button Grid.Column="3" Content="SELECT ALL (FILTERED)" Command="{Binding SelectAllFilteredCommand}" MinWidth="172" />
-              <Button Grid.Column="4" Content="CLEAR" Command="{Binding ClearSelectionCommand}" MinWidth="84" />
-              <StackPanel Grid.Column="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" VerticalAlignment="Center">
-                <Button Content="DELETE SELECTED" Command="{Binding DeleteSelectedCommand}" Background="#7E171F" MinWidth="146" />
-                <CheckBox Content="Open Steam page after delete" IsChecked="{Binding OpenSteamPageAfterDelete}" />
-                <TextBlock Text="{Binding StatusMessage}" Foreground="#9ED7FF" VerticalAlignment="Center" FontWeight="SemiBold" />
-              </StackPanel>
-            </Grid>
-
-            <Border Grid.Row="1" Classes="card-panel" Padding="8" IsVisible="{Binding HasMissingMods}" Margin="0,8,0,8">
-              <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-                <TextBlock Text="{Binding MissingModsContext, StringFormat=Missing Mods ({0})}" FontWeight="Bold" />
-                <TextBlock Grid.Row="1" Text="{Binding MissingModsCount, StringFormat={}{0} required mods are missing locally.}" Foreground="#FFD08A" Margin="0,6,0,6" />
-                <TextBlock Grid.Row="2"
-                           Text="After Steam finishes downloading, press CLEAN DUPES."
-                           Foreground="#9ED7FF"
-                           FontSize="12"
-                           Margin="0,0,0,6" />
-                <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
-                  <ItemsControl ItemsSource="{Binding MissingWorkshopIds}" MaxHeight="88">
-                    <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" />
-                      </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate>
-                        <Border Background="#330E1625" BorderBrush="#55FF1A1A" BorderThickness="1" CornerRadius="5" Padding="6,2" Margin="0,0,6,6">
-                          <TextBlock Text="{Binding .}" FontFamily="Consolas, Cascadia Mono, Courier New" FontSize="12" />
-                        </Border>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                  <StackPanel Grid.Column="1" Spacing="6" Width="185" Margin="8,0,0,0">
-                    <Button Content="OPEN NEXT MISSING MOD" Command="{Binding OpenNextMissingModCommand}" />
-                    <Button Content="COPY ALL MISSING IDS" Command="{Binding CopyAllMissingIdsCommand}" />
-                    <Button Content="RESCAN" Command="{Binding RescanMissingModsCommand}" />
-                    <Button Content="APPLY AGAIN" Command="{Binding ApplyAgainCommand}" IsEnabled="{Binding CanApplyAgain}" />
-                  </StackPanel>
-                </Grid>
-              </Grid>
+        <Border Grid.Row="2" Classes="sidebar-play-bar" Margin="0,16,0,0">
+          <Grid ColumnDefinitions="*,58">
+            <Button Content="{Binding SidebarPlayText}"
+                    Classes="split-button-main"
+                    IsEnabled="{Binding CanLaunchGame}"
+                    Command="{Binding PlayModdedCommand}" />
+            <Border Grid.Column="1" BorderBrush="{DynamicResource BorderDark}" BorderThickness="1,0,0,0">
+              <Button Content="v" Classes="split-button-arrow" IsEnabled="{Binding CanLaunchGame}">
+                <Button.Flyout>
+                  <Flyout Placement="TopEdgeAlignedRight">
+                    <StackPanel Spacing="6" Width="180" DataContext="{Binding DataContext, ElementName=RootWindow}">
+                      <Button Content="Play (Modded)" Classes="secondary-button" Command="{Binding PlayModdedCommand}" />
+                      <Button Content="Play (Vanilla)" Classes="secondary-button" Command="{Binding PlayVanillaCommand}" />
+                    </StackPanel>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
             </Border>
-
-            <ScrollViewer Grid.Row="2"
-                          VerticalScrollBarVisibility="Visible"
-                          HorizontalScrollBarVisibility="Disabled"
-                          AllowAutoHide="False">
-              <ItemsControl ItemsSource="{Binding FilteredMods}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel Orientation="Horizontal" ItemWidth="236" ItemHeight="314" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ModItemViewModel">
-                    <Border Classes="card-panel" Margin="6" Padding="10" Cursor="Hand" Tapped="OnModCardTapped">
-                      <Grid RowDefinitions="126,Auto,Auto,Auto,Auto,Auto,Auto">
-                        <Border Grid.Row="0" Background="#243043" CornerRadius="7" ClipToBounds="True">
-                          <Image Source="{Binding ThumbnailImage}" Stretch="UniformToFill" />
-                        </Border>
-                        <TextBlock Grid.Row="1" Text="{Binding ModName}" FontWeight="Bold" TextWrapping="Wrap" MaxHeight="40" />
-                        <TextBlock Grid.Row="2" Text="{Binding WorkshopId}" Foreground="#9FB0C8" FontSize="12" />
-                        <TextBlock Grid.Row="3" Text="{Binding DownloadCountText}" Foreground="#A8B7CA" FontSize="11" />
-                        <ToggleSwitch Grid.Row="4" Classes="mod-toggle" IsChecked="{Binding IsEnabled}" HorizontalAlignment="Stretch" />
-                        <CheckBox Grid.Row="5" Content="SELECT" IsChecked="{Binding IsSelected}" FontWeight="SemiBold" />
-                        <Button Grid.Row="6" Content="DELETE MOD" Background="#70161F" Command="{Binding DeleteCommand}" />
-                      </Grid>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
-          </Grid>
-        </Border>
-
-        <Border Grid.Row="3" Grid.ColumnSpan="2" Classes="chrome-panel" Padding="9">
-          <Grid ColumnDefinitions="*,*">
-            <TextBlock Text="{Binding SteamStatusPath}" Foreground="#A9B9CE" FontWeight="SemiBold" />
-            <TextBlock Grid.Column="1" Text="{Binding ActiveWorkshopPath}" HorizontalAlignment="Right" Foreground="#90A2BC" />
           </Grid>
         </Border>
       </Grid>
-    </Grid>
+    </Border>
 
-    <Border IsVisible="{Binding IsSettingsOpen}"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Stretch"
-            Margin="0,24,24,24"
-            Width="360"
-            Classes="chrome-panel settings-panel"
+    <Border Grid.Column="1" Classes="main-content-panel" Padding="14">
+      <ContentControl Content="{Binding CurrentPageViewModel}" />
+    </Border>
+
+    <Border Grid.Column="2"
+            Classes="details-panel card-panel"
             Padding="12"
-            ZIndex="100">
-      <ScrollViewer VerticalScrollBarVisibility="Visible"
-                    HorizontalScrollBarVisibility="Disabled"
-                    AllowAutoHide="False">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Text="SETTINGS" FontSize="17" FontWeight="Bold" LetterSpacing="1.4" />
-
-          <TextBlock Grid.Row="1" Text="DESIGN PRESET" Margin="0,10,0,4" Foreground="#A8B7CA" />
-          <ComboBox Grid.Row="2" ItemsSource="{Binding DesignOptions}" SelectedItem="{Binding SelectedDesign, Mode=TwoWay}" />
-
-          <Border Grid.Row="3" Classes="card-panel" Padding="8" Margin="0,12,0,0">
-            <StackPanel Spacing="4">
-              <TextBlock Text="APP INFO" FontWeight="Bold" />
-              <TextBlock Text="{Binding AppAuthor, StringFormat=Author: {0}}" Foreground="#A8B7CA" />
-              <TextBlock Text="{Binding AppCreatedOn, StringFormat=Created: {0}}" Foreground="#A8B7CA" />
-              <TextBlock Text="{Binding CurrentVersionText, StringFormat=Current Version: {0}}" Foreground="#A8B7CA" />
-            </StackPanel>
-          </Border>
-
-          <Border Grid.Row="4" Classes="card-panel" Padding="8" Margin="0,10,0,0">
-            <StackPanel Spacing="6">
-              <TextBlock Text="UPDATES" FontWeight="Bold" />
-              <CheckBox Content="Auto install updates" IsChecked="{Binding AutoInstallUpdates}" />
-              <TextBlock Text="{Binding UpdateStatusText}" Foreground="#A8B7CA" TextWrapping="Wrap" />
-              <Button Content="CHECK FOR UPDATE" Command="{Binding CheckForUpdatesCommand}" />
-              <Button Classes="rainbow-update"
-                      IsVisible="{Binding CanAutoInstallUpdate}"
-                      Command="{Binding DownloadAndInstallUpdateCommand}">
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                  <Path Data="M7,1 L7,9 M3,6 L7,10 L11,6 M2,12 L12,12"
-                        Stroke="#FFFFFFFF"
-                        StrokeThickness="1.6"
-                        Stretch="Uniform"
-                        Width="14"
-                        Height="14" />
-                  <TextBlock Text="AUTO INSTALL UPDATE" />
-                </StackPanel>
-              </Button>
-            </StackPanel>
-          </Border>
-
-          <Button Grid.Row="5" Content="CLOSE" Margin="0,10,0,0" Command="{Binding ToggleSettingsCommand}" />
+            IsVisible="{Binding IsDetailsOpen}">
+      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="Details" Classes="section-title" />
+          <Button Grid.Column="1" Content="Hide" Classes="secondary-button" Command="{Binding ToggleDetailsCommand}" />
         </Grid>
-      </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Spacing="2">
+          <TextBlock Text="{Binding SelectedModTitle}" FontSize="24" FontWeight="Bold" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SelectedModAuthor, StringFormat=Author: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding SelectedModLastUpdated, StringFormat=Last Updated: {0}}" Classes="text-muted" />
+        </StackPanel>
+
+        <Border Grid.Row="2" Height="180" CornerRadius="8" Background="#223046" ClipToBounds="True">
+          <Image Source="{Binding SelectedMod.ThumbnailImage}" Stretch="UniformToFill" />
+        </Border>
+
+        <Border Grid.Row="3" Classes="card-panel" Padding="10">
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+            <TextBlock Text="Workshop ID:" />
+            <TextBlock Grid.Column="1" Text="{Binding SelectedModWorkshopId}" FontWeight="SemiBold" />
+            <TextBlock Grid.Row="1" Text="Local Version:" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedModLocalVersion}" FontWeight="SemiBold" />
+            <TextBlock Grid.Row="2" Text="Remote Version:" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedModRemoteVersion}" FontWeight="SemiBold" />
+            <TextBlock Grid.Row="3" Text="Size:" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedModSize}" FontWeight="SemiBold" />
+            <TextBlock Grid.Row="4" Text="Status:" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedModStatus}" FontWeight="SemiBold" />
+            <Border Grid.Row="5" Grid.ColumnSpan="2" Classes="status-badge" IsVisible="{Binding SelectedModHasUpdate}">
+              <TextBlock Text="UPDATE AVAILABLE" />
+            </Border>
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="4" Classes="card-panel" Padding="10" IsVisible="{Binding HasSelectedProfileModEntry}">
+          <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Text="Active In Profile:" VerticalAlignment="Center" />
+            <ToggleSwitch Grid.Column="1"
+                          Margin="8,0,0,0"
+                          HorizontalAlignment="Left"
+                          IsChecked="{Binding SelectedProfileModActiveInProfile, Mode=TwoWay}" />
+            <Button Grid.Column="2"
+                    Margin="8,0,0,0"
+                    Content="Remove From Profile"
+                    Classes="warning-button"
+                    Command="{Binding RemoveSelectedProfileModFromDetailsCommand}" />
+            <TextBlock Grid.Row="1"
+                       Grid.ColumnSpan="3"
+                       Margin="0,8,0,0"
+                       Classes="text-muted"
+                       Text="Deactivating keeps the mod in this profile but excludes it when applying the profile." />
+          </Grid>
+        </Border>
+
+        <Grid Grid.Row="5" ColumnDefinitions="*,*">
+          <Button Content="Update" Classes="warning-button" Command="{Binding UpdateSelectedModCommand}" />
+          <Button Grid.Column="1" Margin="8,0,0,0" Content="Open Workshop" Classes="secondary-button" Command="{Binding OpenSelectedModWorkshopCommand}" />
+        </Grid>
+
+        <Grid Grid.Row="6" ColumnDefinitions="*,*" Margin="0,8,0,0">
+          <Button Content="Add To Profile"
+                  Classes="primary-button"
+                  Command="{Binding AddSelectedModToCurrentProfileCommand}"
+                  CommandParameter="{Binding SelectedMod}" />
+          <Button Grid.Column="1"
+                  Margin="8,0,0,0"
+                  Content="Delete Mod"
+                  Classes="danger-button"
+                  Command="{Binding DeleteModCommand}"
+                  CommandParameter="{Binding SelectedMod}" />
+        </Grid>
+      </Grid>
     </Border>
   </Grid>
+  </Border>
 </Window>
-
 

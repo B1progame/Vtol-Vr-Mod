@@ -12,7 +12,14 @@ public sealed class WorkshopDependencyResolverService
 {
     private const string DisabledPrefix = "_OFF_";
     private const string ItemMetadataFileName = "item.json";
-    private const string DependenciesPropertyName = "DependenciesIds";
+    private static readonly string[] DependencyPropertyNames =
+    {
+        "DependenciesIds",
+        "DependencyIds",
+        "Dependencies",
+        "RequiredWorkshopIds",
+        "RequiredIds"
+    };
 
     public async Task<DependencyResolutionResult> ResolveAsync(
         string workshopPath,
@@ -114,32 +121,8 @@ public sealed class WorkshopDependencyResolverService
         {
             await using var stream = File.OpenRead(itemJsonPath);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-            if (!TryGetPropertyCaseInsensitive(document.RootElement, DependenciesPropertyName, out var dependenciesElement) ||
-                dependenciesElement.ValueKind != JsonValueKind.Array)
-            {
-                return new HashSet<string>(StringComparer.Ordinal);
-            }
-
             var dependencies = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var element in dependenciesElement.EnumerateArray())
-            {
-                if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var number))
-                {
-                    dependencies.Add(number.ToString());
-                    continue;
-                }
-
-                if (element.ValueKind == JsonValueKind.String)
-                {
-                    var dependencyId = element.GetString();
-                    if (IsNumericId(dependencyId))
-                    {
-                        dependencies.Add(dependencyId!);
-                    }
-                }
-            }
-
+            CollectDependencies(document.RootElement, dependencies);
             return dependencies;
         }
         catch
@@ -148,22 +131,74 @@ public sealed class WorkshopDependencyResolverService
         }
     }
 
-    private static bool TryGetPropertyCaseInsensitive(JsonElement element, string propertyName, out JsonElement value)
+    private static void CollectDependencies(JsonElement element, HashSet<string> dependencies)
     {
-        if (element.ValueKind == JsonValueKind.Object)
+        if (element.ValueKind != JsonValueKind.Object)
         {
-            foreach (var property in element.EnumerateObject())
+            return;
+        }
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (DependencyPropertyNames.Any(name => property.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                if (property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+                CollectDependencyIdsFromValue(property.Value, dependencies);
+            }
+
+            if (property.Value.ValueKind == JsonValueKind.Object)
+            {
+                CollectDependencies(property.Value, dependencies);
+            }
+            else if (property.Value.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var child in property.Value.EnumerateArray())
                 {
-                    value = property.Value;
-                    return true;
+                    if (child.ValueKind == JsonValueKind.Object)
+                    {
+                        CollectDependencies(child, dependencies);
+                    }
                 }
             }
         }
+    }
 
-        value = default;
-        return false;
+    private static void CollectDependencyIdsFromValue(JsonElement value, HashSet<string> dependencies)
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Array:
+                foreach (var item in value.EnumerateArray())
+                {
+                    CollectDependencyIdsFromValue(item, dependencies);
+                }
+
+                break;
+            case JsonValueKind.Number:
+                if (value.TryGetInt64(out var number))
+                {
+                    dependencies.Add(number.ToString());
+                }
+
+                break;
+            case JsonValueKind.String:
+                var text = value.GetString();
+                if (IsNumericId(text))
+                {
+                    dependencies.Add(text!);
+                }
+
+                break;
+            case JsonValueKind.Object:
+                foreach (var property in value.EnumerateObject())
+                {
+                    if (property.Value.ValueKind is JsonValueKind.Number or JsonValueKind.String)
+                    {
+                        CollectDependencyIdsFromValue(property.Value, dependencies);
+                    }
+                }
+
+                break;
+        }
     }
 
     private static bool TryGetWorkshopId(string folderName, out string workshopId)
