@@ -10,7 +10,8 @@ public sealed class AppPaths
     public string BackupsDir { get; }
     public string LogsDir { get; }
     public string SettingsFile { get; }
-    public string LogFile => Path.Combine(LogsDir, "app.log");
+    public string SessionLogFile { get; }
+    public string LogFile => SessionLogFile;
 
     public AppPaths()
     {
@@ -26,5 +27,8 @@ public sealed class AppPaths
         Directory.CreateDirectory(ProfilesDir);
         Directory.CreateDirectory(BackupsDir);
         Directory.CreateDirectory(LogsDir);
+
+        var sessionStamp = DateTime.Now.ToString("yyyyMMdd_HHmmssfff");
+        SessionLogFile = Path.Combine(LogsDir, $"app-{sessionStamp}.log");
     }
 }

@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -51,6 +52,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private const string VrRuntimeSteamVr = "SteamVR";
     private const string VrRuntimeOculus = "Oculus";
     private const string VrRuntimeOpenXr = "OpenXR";
+    public const string LaunchHoverTargetSidebar = "sidebar";
+    public const string LaunchHoverTargetModded = "modded";
+    public const string LaunchHoverTargetVanilla = "vanilla";
 
     private readonly ObservableCollection<ModItemViewModel> _allMods = new();
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -111,7 +115,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private bool isLaunchingGame;
 
     [ObservableProperty]
-    private bool isLaunchButtonHovered;
+    private string launchButtonHoverTarget = string.Empty;
 
     [ObservableProperty]
     private bool openSteamPageAfterDelete = true;
@@ -188,6 +192,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _backupService = new BackupService(_appPaths);
         _settingsService = new AppSettingsService(_appPaths);
         _logger = new AppLogger(_appPaths);
+        _ = _logger.InfoAsync($"Session started. Log file: {Path.GetFileName(_appPaths.LogFile)}");
 
         _allMods.CollectionChanged += OnModsCollectionChanged;
         _watcher.WorkshopChanged += OnWorkshopChangedAsync;

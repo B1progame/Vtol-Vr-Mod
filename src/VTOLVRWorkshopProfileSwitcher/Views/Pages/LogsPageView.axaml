@@ -8,34 +8,55 @@
              x:DataType="pages:LogsPageViewModel"
              x:CompileBindings="False"
              mc:Ignorable="d">
-  <Grid RowDefinitions="Auto,*">
+  <Grid RowDefinitions="Auto,Auto,*">
     <Border Classes="toolbar-panel" Padding="12">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
         <TextBlock Text="All Logs" Classes="section-title" VerticalAlignment="Center" />
-        <Button Grid.Column="1" Margin="8,0,0,0" Content="Refresh Logs" Classes="secondary-button" Command="{Binding Shell.ReloadLogsCommand}" />
-        <Button Grid.Column="2"
+        <Button Grid.Column="1" Margin="8,0,0,0" Content="Open Log Folder" Classes="secondary-button" Command="{Binding Shell.OpenLogFolderCommand}" />
+        <Button Grid.Column="2" Margin="8,0,0,0" Content="Refresh Logs" Classes="secondary-button" Command="{Binding Shell.ReloadLogsCommand}" />
+        <Button Grid.Column="3"
                 Margin="8,0,0,0"
                 Content="Delete Selected"
                 Classes="danger-button"
                 Command="{Binding Shell.DeleteSelectedLogCommand}"
                 CommandParameter="{Binding #LogsList.SelectedItems}" />
-        <Button Grid.Column="3" Margin="8,0,0,0" Content="Delete All" Classes="danger-button" Command="{Binding Shell.DeleteAllLogsCommand}" />
+        <Button Grid.Column="4" Margin="8,0,0,0" Content="Delete All" Classes="danger-button" Command="{Binding Shell.DeleteAllLogsCommand}" />
       </Grid>
     </Border>
 
     <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
-      <ListBox x:Name="LogsList"
-               ItemsSource="{Binding Shell.AllLogs}"
-               SelectedItem="{Binding Shell.SelectedLogEntry}"
-               SelectionMode="Multiple">
-        <ListBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:LogEntryViewModel">
-            <Border Classes="card-panel" Padding="8" Margin="0,0,0,6">
-              <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
-            </Border>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+        <CheckBox Grid.Column="0" Content="INFO" IsChecked="{Binding Shell.ShowInfoLogs}" Classes="log-filter-chip log-filter-info" />
+        <CheckBox Grid.Column="1" Margin="8,0,0,0" Content="WARN" IsChecked="{Binding Shell.ShowWarningLogs}" Classes="log-filter-chip log-filter-warn" />
+        <CheckBox Grid.Column="2" Margin="8,0,0,0" Content="ERROR" IsChecked="{Binding Shell.ShowErrorLogs}" Classes="log-filter-chip log-filter-error" />
+        <TextBlock Grid.Column="3"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center"
+                   Classes="text-muted"
+                   Text="{Binding Shell.AllLogs.Count, StringFormat=Visible entries: {0}}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Classes="log-terminal" Padding="12" Margin="0,12,0,0">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Classes="log-prompt-text"
+                   Text="C:\VTOLVRWorkshopProfileSwitcher&gt; type app-*.log" />
+        <ListBox x:Name="LogsList"
+                 Grid.Row="1"
+                 Classes="log-terminal-list"
+                 ItemsSource="{Binding Shell.AllLogs}"
+                 SelectedItem="{Binding Shell.SelectedLogEntry}"
+                 SelectionMode="Multiple">
+          <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:LogEntryViewModel">
+                <TextBlock Classes="log-line-text"
+                           Foreground="{Binding MessageBrush}"
+                           Text="{Binding TerminalLine}"
+                           TextWrapping="Wrap" />
+              </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using VTOLVRWorkshopProfileSwitcher.ViewModels;
 using VTOLVRWorkshopProfileSwitcher.ViewModels.Pages;
 
 namespace VTOLVRWorkshopProfileSwitcher.Views.Pages;
@@ -15,7 +16,7 @@ public partial class ProfileDetailsPageView : UserControl
     {
         if (DataContext is ProfileDetailsPageViewModel vm)
         {
-            vm.Shell.SetLaunchButtonHovered(true);
+            vm.Shell.SetLaunchButtonHovered(MainWindowViewModel.LaunchHoverTargetModded, true);
         }
     }
 
@@ -23,7 +24,7 @@ public partial class ProfileDetailsPageView : UserControl
     {
         if (DataContext is ProfileDetailsPageViewModel vm)
         {
-            vm.Shell.SetLaunchButtonHovered(false);
+            vm.Shell.SetLaunchButtonHovered(MainWindowViewModel.LaunchHoverTargetModded, false);
         }
     }
 }

@@ -420,5 +420,87 @@
       <Setter Property="Padding" Value="8,4" />
       <Setter Property="HorizontalAlignment" Value="Left" />
     </Style>
+
+    <Style Selector="Border.log-terminal">
+      <Setter Property="Background" Value="#0C0C0C" />
+      <Setter Property="BorderBrush" Value="#303030" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="2" />
+      <Setter Property="BoxShadow" Value="0 8 20 0 #30000000" />
+    </Style>
+
+    <Style Selector="Border.log-line-panel">
+      <Setter Property="Background" Value="#11161C" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+
+    <Style Selector="TextBlock.log-time">
+      <Setter Property="Foreground" Value="#8AA4BC" />
+      <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style Selector="TextBlock.log-line-text">
+      <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#E5E5E5" />
+      <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+
+    <Style Selector="TextBlock.log-prompt-text">
+      <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#4AF626" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style Selector="ListBox.log-terminal-list">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.log-terminal-list > ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.log-terminal-list > ListBoxItem:selected">
+      <Setter Property="Background" Value="#1A2430" />
+      <Setter Property="BorderBrush" Value="#27415A" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="CheckBox.log-filter-chip">
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="CheckBox.log-filter-info">
+      <Setter Property="Background" Value="#1A3961" />
+      <Setter Property="BorderBrush" Value="#2E5D8F" />
+      <Setter Property="Foreground" Value="#D7EAFF" />
+    </Style>
+
+    <Style Selector="CheckBox.log-filter-warn">
+      <Setter Property="Background" Value="#584311" />
+      <Setter Property="BorderBrush" Value="#8A6A1A" />
+      <Setter Property="Foreground" Value="#FFE9BA" />
+    </Style>
+
+    <Style Selector="CheckBox.log-filter-error">
+      <Setter Property="Background" Value="#5B1D23" />
+      <Setter Property="BorderBrush" Value="#8B2C34" />
+      <Setter Property="Foreground" Value="#FFD4D8" />
+    </Style>
   </Application.Styles>
 </Application>

@@ -131,7 +131,7 @@
             Classes.details-panel-open="{Binding IsDetailsOpen}"
             Padding="12"
             IsVisible="{Binding IsDetailsOpen}">
-      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Text="Details" Classes="section-title" />
           <Button Grid.Column="1" Content="Hide" Classes="secondary-button" Command="{Binding ToggleDetailsCommand}" />
@@ -143,7 +143,7 @@
           <TextBlock Text="{Binding SelectedModLastUpdated, StringFormat=Last Updated: {0}}" Classes="text-muted" />
         </StackPanel>
 
-        <Border Grid.Row="2" Height="180" CornerRadius="8" Background="#223046" ClipToBounds="True">
+        <Border Grid.Row="2" Height="240" CornerRadius="8" Background="#223046" ClipToBounds="True">
           <Image Source="{Binding SelectedMod.ThumbnailImage}" Stretch="UniformToFill" />
         </Border>
 
@@ -165,7 +165,7 @@
           </Grid>
         </Border>
 
-        <Border Grid.Row="4" Classes="card-panel" Padding="10" IsVisible="{Binding HasSelectedProfileModEntry}">
+        <Border Grid.Row="4" Classes="card-panel" Padding="10" Margin="0,8,0,0" IsVisible="{Binding HasSelectedProfileModEntry}">
           <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto">
             <TextBlock Text="Active In Profile:" VerticalAlignment="Center" />
             <ToggleSwitch Grid.Column="1"
@@ -185,12 +185,12 @@
           </Grid>
         </Border>
 
-        <Grid Grid.Row="5" ColumnDefinitions="*,*">
+        <Grid Grid.Row="6" ColumnDefinitions="*,*" Margin="0,8,0,0">
           <Button Content="Update" Classes="warning-button" Command="{Binding UpdateSelectedModCommand}" />
           <Button Grid.Column="1" Margin="8,0,0,0" Content="Open Workshop" Classes="secondary-button" Command="{Binding OpenSelectedModWorkshopCommand}" />
         </Grid>
 
-        <Grid Grid.Row="6" ColumnDefinitions="*,*" Margin="0,8,0,0">
+        <Grid Grid.Row="7" ColumnDefinitions="*,*" Margin="0,8,0,0">
           <Button Content="Add To Profile"
                   Classes="primary-button"
                   Command="{Binding AddSelectedModToCurrentProfileCommand}"
@@ -207,6 +207,5 @@
   </Grid>
   </Border>
 </Window>
-
 
 

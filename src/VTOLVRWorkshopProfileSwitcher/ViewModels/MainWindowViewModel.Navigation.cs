@@ -56,6 +56,15 @@ public sealed partial class MainWindowViewModel
     private LogEntryViewModel? selectedLogEntry;
 
     [ObservableProperty]
+    private bool showInfoLogs = true;
+
+    [ObservableProperty]
+    private bool showWarningLogs = true;
+
+    [ObservableProperty]
+    private bool showErrorLogs = true;
+
+    [ObservableProperty]
     private ProfileItemViewModel? profileUnderEdit;
 
     [ObservableProperty]
@@ -92,9 +101,9 @@ public sealed partial class MainWindowViewModel
         !SelectedProfileModEntry.IsDependencyOnly;
     public string ProfileUnderEditText => ProfileUnderEdit is null ? "No profile selected" : $"Editing: {ProfileUnderEdit.Name}";
     public bool CanLaunchGame => true;
-    public string SidebarPlayText => GetLaunchButtonText("Play");
-    public string PlayModdedButtonText => GetLaunchButtonText("PLAY (MODDED)");
-    public string PlayVanillaButtonText => GetLaunchButtonText("PLAY (VANILLA)");
+    public string SidebarPlayText => GetLaunchButtonText("Play", LaunchHoverTargetSidebar);
+    public string PlayModdedButtonText => GetLaunchButtonText("PLAY (MODDED)", LaunchHoverTargetModded);
+    public string PlayVanillaButtonText => GetLaunchButtonText("PLAY (VANILLA)", LaunchHoverTargetVanilla);
     public string SelectedModTitle => SelectedMod?.ModName ?? "No Mod Selected";
     public string SelectedModAuthor => _selectedModAuthor;
     public string SelectedModLastUpdated => _selectedModLastUpdated;
@@ -115,6 +124,7 @@ public sealed partial class MainWindowViewModel
     private bool _isSyncingSelectedProfileModState;
     private List<ProfileModEntryViewModel> _currentProfileModEntries = new();
     private CancellationTokenSource? _profileDependencyToggleCts;
+    private List<LogEntryViewModel> _rawLogs = new();
 
     private void InitializeShell()
     {
@@ -169,7 +179,7 @@ public sealed partial class MainWindowViewModel
     {
         if (!value)
         {
-            IsLaunchButtonHovered = false;
+            LaunchButtonHoverTarget = string.Empty;
         }
 
         OnPropertyChanged(nameof(CanLaunchGame));
@@ -178,26 +188,43 @@ public sealed partial class MainWindowViewModel
         OnPropertyChanged(nameof(PlayVanillaButtonText));
     }
 
-    partial void OnIsLaunchButtonHoveredChanged(bool value)
+    partial void OnLaunchButtonHoverTargetChanged(string value)
     {
         OnPropertyChanged(nameof(SidebarPlayText));
         OnPropertyChanged(nameof(PlayModdedButtonText));
         OnPropertyChanged(nameof(PlayVanillaButtonText));
     }
 
-    public void SetLaunchButtonHovered(bool isHovered)
+    public void SetLaunchButtonHovered(string launchTarget, bool isHovered)
     {
-        IsLaunchButtonHovered = isHovered && IsLaunchingGame;
+        if (!IsLaunchingGame)
+        {
+            LaunchButtonHoverTarget = string.Empty;
+            return;
+        }
+
+        if (isHovered)
+        {
+            LaunchButtonHoverTarget = launchTarget;
+            return;
+        }
+
+        if (string.Equals(LaunchButtonHoverTarget, launchTarget, StringComparison.Ordinal))
+        {
+            LaunchButtonHoverTarget = string.Empty;
+        }
     }
 
-    private string GetLaunchButtonText(string idleText)
+    private string GetLaunchButtonText(string idleText, string launchTarget)
     {
         if (!IsLaunchingGame)
         {
             return idleText;
         }
 
-        return IsLaunchButtonHovered ? "Cancel" : "Launching...";
+        return string.Equals(LaunchButtonHoverTarget, launchTarget, StringComparison.Ordinal)
+            ? "Cancel"
+            : "Launching...";
     }
 
     private void RequestLaunchCancel(string mode)
@@ -232,7 +259,7 @@ public sealed partial class MainWindowViewModel
 
     private void EndLaunch(CancellationToken token)
     {
-        IsLaunchButtonHovered = false;
+        LaunchButtonHoverTarget = string.Empty;
         IsLaunchingGame = false;
 
         if (_launchCts is null || _launchCts.Token != token)
@@ -308,6 +335,21 @@ public sealed partial class MainWindowViewModel
         _profileDependencyToggleCts?.Dispose();
         _profileDependencyToggleCts = new CancellationTokenSource();
         _ = RefreshProfileDependenciesToggleAsync(ProfileUnderEdit, value, _profileDependencyToggleCts.Token);
+    }
+
+    partial void OnShowInfoLogsChanged(bool value)
+    {
+        ApplyLogFilter();
+    }
+
+    partial void OnShowWarningLogsChanged(bool value)
+    {
+        ApplyLogFilter();
+    }
+
+    partial void OnShowErrorLogsChanged(bool value)
+    {
+        ApplyLogFilter();
     }
 
     public ObservableCollection<ProfileModEntryViewModel> BuildProfileModEntries(ProfileItemViewModel profile)
@@ -1074,23 +1116,39 @@ public sealed partial class MainWindowViewModel
     [RelayCommand]
     private async Task ReloadLogsAsync()
     {
-        if (!File.Exists(_appPaths.LogFile))
+        var files = Directory.Exists(_appPaths.LogsDir)
+            ? Directory.EnumerateFiles(_appPaths.LogsDir, "app-*.log")
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : new List<string>();
+
+        if (files.Count == 0)
         {
-            AllLogs = new ObservableCollection<LogEntryViewModel>();
-            RecentLogs = new ObservableCollection<LogEntryViewModel>();
-            SelectedLogEntry = null;
-            return;
+            files = File.Exists(_appPaths.LogFile)
+                ? new List<string> { _appPaths.LogFile }
+                : new List<string>();
         }
 
-        var lines = await File.ReadAllLinesAsync(_appPaths.LogFile);
-        var ordered = lines
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .Select(line => new LogEntryViewModel(line))
+        var entries = new List<LogEntryViewModel>();
+        foreach (var file in files)
+        {
+            if (!File.Exists(file))
+            {
+                continue;
+            }
+
+            var lines = await File.ReadAllLinesAsync(file);
+            entries.AddRange(lines
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => new LogEntryViewModel(line, file)));
+        }
+
+        _rawLogs = entries
+            .OrderBy(entry => entry.Timestamp ?? DateTime.MinValue)
+            .ThenBy(entry => entry.SourceFile, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        AllLogs = new ObservableCollection<LogEntryViewModel>(ordered);
-        RecentLogs = new ObservableCollection<LogEntryViewModel>(ordered.TakeLast(8));
-        SelectedLogEntry = AllLogs.Count > 0 ? AllLogs[^1] : null;
+        ApplyLogFilter();
     }
 
     [RelayCommand]
@@ -1111,25 +1169,32 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        if (!File.Exists(_appPaths.LogFile))
-        {
-            StatusMessage = "Log file not found";
-            return;
-        }
-
         try
         {
-            var lines = (await File.ReadAllLinesAsync(_appPaths.LogFile)).ToList();
             var removedCount = 0;
-            foreach (var logEntry in selectedLogs)
+            var grouped = selectedLogs
+                .Where(log => !string.IsNullOrWhiteSpace(log.SourceFile))
+                .GroupBy(log => log.SourceFile, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in grouped)
             {
-                if (lines.Remove(logEntry.Text))
+                if (!File.Exists(group.Key))
                 {
-                    removedCount++;
+                    continue;
                 }
+
+                var lines = (await File.ReadAllLinesAsync(group.Key)).ToList();
+                foreach (var logEntry in group)
+                {
+                    if (lines.Remove(logEntry.Text))
+                    {
+                        removedCount++;
+                    }
+                }
+
+                await File.WriteAllLinesAsync(group.Key, lines);
             }
 
-            await File.WriteAllLinesAsync(_appPaths.LogFile, lines);
             await ReloadLogsAsync();
             StatusMessage = removedCount == selectedLogs.Count
                 ? $"Deleted {removedCount} log entries"
@@ -1146,9 +1211,12 @@ public sealed partial class MainWindowViewModel
     {
         try
         {
-            if (File.Exists(_appPaths.LogFile))
+            if (Directory.Exists(_appPaths.LogsDir))
             {
-                await File.WriteAllTextAsync(_appPaths.LogFile, string.Empty);
+                foreach (var file in Directory.EnumerateFiles(_appPaths.LogsDir, "app-*.log"))
+                {
+                    await File.WriteAllTextAsync(file, string.Empty);
+                }
             }
 
             await ReloadLogsAsync();
@@ -1158,6 +1226,43 @@ public sealed partial class MainWindowViewModel
         {
             StatusMessage = "Failed to delete all logs";
         }
+    }
+
+    [RelayCommand]
+    private void OpenLogFolder()
+    {
+        try
+        {
+            if (!Directory.Exists(_appPaths.LogsDir))
+            {
+                Directory.CreateDirectory(_appPaths.LogsDir);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{_appPaths.LogsDir}\"",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            StatusMessage = "Failed to open log folder";
+        }
+    }
+
+    private void ApplyLogFilter()
+    {
+        var filtered = _rawLogs
+            .Where(log =>
+                (ShowInfoLogs && log.Level == AppLogLevel.Info) ||
+                (ShowWarningLogs && log.Level == AppLogLevel.Warning) ||
+                (ShowErrorLogs && log.Level == AppLogLevel.Error))
+            .ToList();
+
+        AllLogs = new ObservableCollection<LogEntryViewModel>(filtered);
+        RecentLogs = new ObservableCollection<LogEntryViewModel>(filtered.TakeLast(8));
+        SelectedLogEntry = AllLogs.Count > 0 ? AllLogs[^1] : null;
     }
 
     [RelayCommand]

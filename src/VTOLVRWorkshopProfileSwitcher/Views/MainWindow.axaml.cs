@@ -66,12 +66,12 @@ public partial class MainWindow : Window
 
     private void OnLaunchButtonPointerEntered(object? sender, PointerEventArgs e)
     {
-        _subscribedViewModel?.SetLaunchButtonHovered(true);
+        _subscribedViewModel?.SetLaunchButtonHovered(MainWindowViewModel.LaunchHoverTargetSidebar, true);
     }
 
     private void OnLaunchButtonPointerExited(object? sender, PointerEventArgs e)
     {
-        _subscribedViewModel?.SetLaunchButtonHovered(false);
+        _subscribedViewModel?.SetLaunchButtonHovered(MainWindowViewModel.LaunchHoverTargetSidebar, false);
     }
 
     private void OnLaunchFlyoutOpened(object? sender, EventArgs e)
