@@ -13,7 +13,7 @@ public sealed class CwbLoadItemsService
 {
     public const string CustomWeaponsBaseWorkshopId = "3265798414";
 
-    private const string DisabledPrefix = "_OFF_";
+    private const string DisabledPrefix = "#";
     private const string LoadItemsFileName = "loaditems.json";
 
     public async Task<CwbPackDiscoveryResult> DiscoverPacksAsync(
@@ -37,22 +37,7 @@ public sealed class CwbLoadItemsService
                 continue;
             }
 
-            List<string> packNames;
-            try
-            {
-                packNames = Directory.EnumerateFiles(directory, "*.cwb", SearchOption.TopDirectoryOnly)
-                    .Select(Path.GetFileName)
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Select(name => name!)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch
-            {
-                continue;
-            }
-
+            var packNames = await TryEnumeratePackNamesAsync(directory, cancellationToken);
             if (packNames.Count == 0)
             {
                 continue;
@@ -309,6 +294,37 @@ public sealed class CwbLoadItemsService
 
         workshopId = string.Empty;
         return false;
+    }
+
+    private static async Task<List<string>> TryEnumeratePackNamesAsync(
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return Directory.EnumerateFiles(directory, "*.cwb", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                await Task.Delay(60 * attempt, cancellationToken);
+            }
+            catch (UnauthorizedAccessException) when (attempt < maxAttempts)
+            {
+                await Task.Delay(60 * attempt, cancellationToken);
+            }
+        }
+
+        return new List<string>();
     }
 
     private sealed class LoadItemsDocument

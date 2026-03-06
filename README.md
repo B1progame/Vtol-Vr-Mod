@@ -6,7 +6,7 @@ If you like this project, please consider giving it a star on GitHub. :star:
 
 ## TL;DR
 
-`VTOL VR Workshop Profile Switcher` scans your VTOL VR Workshop folder, lets you save named mod profiles, and applies them by renaming mod folders between enabled (`<WorkshopId>`) and disabled (`_OFF_<WorkshopId>`) states. It also supports live refresh, logs, and snapshot backups before changes.
+`VTOL VR Workshop Profile Switcher` scans your VTOL VR Workshop folder, lets you save named mod profiles, and applies them while keeping workshop folders in canonical `<WorkshopId>` naming. It also supports live refresh, logs, and snapshot backups before changes.
 
 ## Requirements
 

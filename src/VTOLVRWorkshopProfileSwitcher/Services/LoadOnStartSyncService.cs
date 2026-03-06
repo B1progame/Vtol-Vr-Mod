@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,12 +104,29 @@ public sealed class LoadOnStartSyncService
 
         if (File.Exists(filePath))
         {
-            var backupPath = $"{filePath}.bak_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
-            File.Copy(filePath, backupPath, overwrite: true);
+            var backupPath = BuildBackupPath(filePath);
+            try
+            {
+                var backupDirectory = Path.GetDirectoryName(backupPath);
+                if (!string.IsNullOrWhiteSpace(backupDirectory))
+                {
+                    Directory.CreateDirectory(backupDirectory);
+                }
+
+                File.Copy(filePath, backupPath, overwrite: true);
+            }
+            catch (IOException)
+            {
+                // Backup should be best-effort only.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Backup should be best-effort only.
+            }
         }
 
         var json = JsonSerializer.Serialize(payload);
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        await WriteAtomicAsync(filePath, json, cancellationToken);
     }
 
     private static async Task<LoadOnStartPayload> ReadExistingAsync(string filePath, CancellationToken cancellationToken)
@@ -124,8 +142,46 @@ public sealed class LoadOnStartSyncService
             return new LoadOnStartPayload();
         }
 
-        var parsed = JsonSerializer.Deserialize<LoadOnStartPayload>(content);
-        return parsed ?? new LoadOnStartPayload();
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<LoadOnStartPayload>(content);
+            return parsed ?? new LoadOnStartPayload();
+        }
+        catch (JsonException)
+        {
+            // The file may be transiently incomplete while another process updates it.
+            return new LoadOnStartPayload();
+        }
+    }
+
+    private static async Task WriteAtomicAsync(string filePath, string json, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(filePath) ?? ".";
+        var tempPath = Path.Combine(directory, $".vtolwps_loadonstart_tmp_{Guid.NewGuid():N}");
+
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken);
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (IOException)
+                {
+                    // Ignore temp cleanup failures.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Ignore temp cleanup failures.
+                }
+            }
+        }
     }
 
     private static List<string> FindCandidateFiles()
@@ -178,6 +234,42 @@ public sealed class LoadOnStartSyncService
         }
 
         return value.All(char.IsDigit);
+    }
+
+    private static string BuildBackupPath(string sourceFilePath)
+    {
+        var backupRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "VTOLVR-WorkshopProfiles",
+            "backups",
+            "load-on-start");
+        var steamUserId = GetSteamUserIdFromLoadOnStartPath(sourceFilePath) ?? "unknown";
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmssfff");
+        return Path.Combine(backupRoot, $"{steamUserId}_{timestamp}.json");
+    }
+
+    private static string? GetSteamUserIdFromLoadOnStartPath(string filePath)
+    {
+        // Expected path shape: ...\userdata\<steamUserId>\3018410\remote\Load on Start
+        var separators = new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+        var segments = filePath.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            if (segments[i].Equals("userdata", StringComparison.OrdinalIgnoreCase))
+            {
+                var userIdIndex = i + 1;
+                if (userIdIndex < segments.Length)
+                {
+                    var userId = segments[userIdIndex];
+                    if (IsNumericId(userId))
+                    {
+                        return userId;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private sealed class LoadOnStartPayload

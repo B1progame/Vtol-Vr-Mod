@@ -23,6 +23,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VTOLVRWorkshopProfileSwitcher.Models;
 using VTOLVRWorkshopProfileSwitcher.Services;
+using VTOLVRWorkshopProfileSwitcher.Views;
 
 namespace VTOLVRWorkshopProfileSwitcher.ViewModels;
 
@@ -32,6 +33,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private const string GitHubRepoName = "Vtol-Vr-Mod";
     private const string ReleasesPageUrl = "https://github.com/B1progame/Vtol-Vr-Mod/releases";
     private const string DefaultInstallerAssetName = "VTOLVRSwitcher-Setup.exe";
+    private static readonly string[] CwbPackFolderToggleExcludeNameTokens =
+    {
+        "cwb addon",
+        "custom weapons base addon"
+    };
     private static readonly Version CurrentAppVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0, 0);
     private static readonly string CurrentVersionId = GetCurrentVersionId();
     private static readonly HttpClient GitHubHttpClient = new();
@@ -65,6 +71,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private bool _isLoadingProfileSelectionIntoToggles;
     private CancellationTokenSource? _addModeProfileSaveCts;
     private CancellationTokenSource? _dependencyPreviewCts;
+    private CancellationTokenSource? _vtolRunningMonitorCts;
     private HashSet<string>? _lastRequestedEnabledSet;
     private List<string> _lastRequiredOrderedIds = new();
     private string _lastApplyContext = string.Empty;
@@ -113,6 +120,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool isLaunchingGame;
+
+    [ObservableProperty]
+    private bool isVtolRunning;
 
     [ObservableProperty]
     private string launchButtonHoverTarget = string.Empty;
@@ -198,6 +208,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _watcher.WorkshopChanged += OnWorkshopChangedAsync;
         EnsureGitHubHttpDefaults();
         InitializeShell();
+        StartVtolRunningMonitor();
 
         _ = InitializeAsync();
     }
@@ -205,8 +216,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public override void Dispose()
     {
         TrySetDoorstopEnabled(false, out _, out _);
+        TryRestoreDisabledModFoldersOnLauncherExit();
         _launchCts?.Cancel();
         _launchCts?.Dispose();
+        _vtolRunningMonitorCts?.Cancel();
+        _vtolRunningMonitorCts?.Dispose();
+        _vtolExitCleanupCts?.Cancel();
+        _vtolExitCleanupCts?.Dispose();
         _addModeProfileSaveCts?.Cancel();
         _addModeProfileSaveCts?.Dispose();
         _dependencyPreviewCts?.Cancel();
@@ -219,7 +235,78 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _refreshLock.Dispose();
     }
 
+    private void TryRestoreDisabledModFoldersOnLauncherExit()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ActiveWorkshopPath) ||
+                string.Equals(ActiveWorkshopPath, "Not detected", StringComparison.OrdinalIgnoreCase) ||
+                !Directory.Exists(ActiveWorkshopPath))
+            {
+                return;
+            }
+
+            var folderNames = Directory.EnumerateDirectories(ActiveWorkshopPath)
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .ToList();
+
+            var parsedMods = new List<WorkshopMod>(folderNames.Count);
+            foreach (var folderName in folderNames)
+            {
+                if (folderName is null)
+                {
+                    continue;
+                }
+
+                if (!WorkshopScanner.TryGetWorkshopId(folderName, out var workshopId, out var isEnabled))
+                {
+                    continue;
+                }
+
+                parsedMods.Add(new WorkshopMod
+                {
+                    WorkshopId = workshopId,
+                    FolderName = folderName,
+                    FullPath = Path.Combine(ActiveWorkshopPath, folderName),
+                    IsEnabled = isEnabled,
+                    DisplayName = $"Mod {workshopId}"
+                });
+            }
+
+            if (parsedMods.Count == 0)
+            {
+                return;
+            }
+
+            var allIds = parsedMods
+                .Select(mod => mod.WorkshopId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.Ordinal);
+
+            if (allIds.Count == 0)
+            {
+                return;
+            }
+
+            _renameEngine.ApplyEnabledSetAsync(
+                    ActiveWorkshopPath,
+                    parsedMods,
+                    allIds,
+                    disableUnselectedMods: false,
+                    logAsync: (line, token) => _logger.LogAsync(line, token),
+                    cancellationToken: CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch
+        {
+            // Shutdown cleanup is best-effort only.
+        }
+    }
+
     private CancellationTokenSource? _launchCts;
+    private CancellationTokenSource? _vtolExitCleanupCts;
 
     partial void OnSearchQueryChanged(string value)
     {
@@ -710,6 +797,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task OpenAddProfileDialogAsync()
+    {
+        var window = GetMainWindow();
+        if (window is null)
+        {
+            StatusMessage = "Add profile dialog is unavailable";
+            return;
+        }
+
+        var dialog = new AddProfileWindow();
+        var result = await dialog.ShowDialog<AddProfileDialogResult?>(window);
+        if (result is null)
+        {
+            return;
+        }
+
+        ProfileNameInput = result.Name;
+        ProfileNotesInput = result.Notes;
+
+        foreach (var mod in _allMods)
+        {
+            mod.IsEnabled = result.ActivateAllMods;
+        }
+
+        await SaveProfileAsync();
+    }
+
+    [RelayCommand]
     private async Task ExportSelectedProfilePackageAsync()
     {
         if (SelectedProfile is null)
@@ -850,7 +965,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task ApplySelectedProfileAsync()
+    private async Task ApplySelectedProfileAsync(CancellationToken cancellationToken = default)
     {
         if (SelectedProfile is null)
         {
@@ -866,7 +981,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         await ApplyEnabledSetAsync(
             requiredOrderedIds.ToHashSet(StringComparer.Ordinal),
             requiredOrderedIds,
-            $"profile '{SelectedProfile.Name}'");
+            $"profile '{SelectedProfile.Name}'",
+            cancellationToken);
         StatusMessage = $"Applied profile '{SelectedProfile.Name}'";
     }
 
@@ -1165,7 +1281,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private async Task ApplyEnabledSetAsync(
         IReadOnlySet<string> enabledSet,
         IReadOnlyList<string>? requiredOrderedIds = null,
-        string applyContext = "apply")
+        string applyContext = "apply",
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(ActiveWorkshopPath) || ActiveWorkshopPath == "Not detected")
         {
@@ -1186,17 +1303,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _lastApplyContext = applyContext;
         OnPropertyChanged(nameof(CanApplyAgain));
 
-        var installedIds = await GetInstalledWorkshopIdsAsync();
+        cancellationToken.ThrowIfCancellationRequested();
+        var installedIds = await GetInstalledWorkshopIdsAsync(cancellationToken);
         var missingIdsBeforeApply = BuildMissingWorkshopIdList(requiredIds, installedIds);
         await SetMissingModsAsync(missingIdsBeforeApply, applyContext);
 
         IsBusy = true;
         try
         {
-            await _backupService.CreateSnapshotAsync(ActiveWorkshopPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            await _backupService.CreateSnapshotAsync(ActiveWorkshopPath, cancellationToken);
 
-            var requestedEnabledSet = await BuildRequestedEnabledSetWithCwbInferenceAsync(normalizedEnabledSet);
-            var dependencyResult = await _dependencyResolver.ResolveAsync(ActiveWorkshopPath, requestedEnabledSet);
+            cancellationToken.ThrowIfCancellationRequested();
+            var requestedEnabledSet = await BuildRequestedEnabledSetWithCwbInferenceAsync(normalizedEnabledSet, cancellationToken);
+            var dependencyResult = await _dependencyResolver.ResolveAsync(ActiveWorkshopPath, requestedEnabledSet, cancellationToken);
             var resolvedEnabledSet = dependencyResult.EnabledWorkshopIds.ToHashSet(StringComparer.Ordinal);
 
             if (dependencyResult.AutoEnabledDependencyIds.Count > 0)
@@ -1211,33 +1331,77 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     $"Dependency ids missing locally (could not auto-enable): {string.Join(", ", dependencyResult.MissingDependencyIds)}");
             }
 
-            var cwbDiscovery = await _cwbLoadItemsService.DiscoverPacksAsync(ActiveWorkshopPath);
-            var enabledForFolderState = resolvedEnabledSet.ToHashSet(StringComparer.Ordinal);
-            foreach (var cwbPackId in cwbDiscovery.PackWorkshopIds)
-            {
-                enabledForFolderState.Add(cwbPackId);
-            }
-
-            var current = await _scanner.ScanAsync(ActiveWorkshopPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            var cwbDiscovery = await _cwbLoadItemsService.DiscoverPacksAsync(ActiveWorkshopPath, cancellationToken);
+            var current = await _scanner.ScanAsync(ActiveWorkshopPath, cancellationToken);
             foreach (var mod in current)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (WorkshopScanner.TryGetWorkshopId(mod.FolderName, out _, out var enabledByFolderName))
                 {
                     mod.IsEnabled = enabledByFolderName;
                 }
             }
 
-            var changes = await _renameEngine.ApplyEnabledSetAsync(
-                ActiveWorkshopPath,
-                current,
-                enabledForFolderState,
-                (line, token) => _logger.LogAsync(line, token));
+            var cwbAlwaysEnabledByName = BuildCwbPackFolderToggleExclusions(cwbDiscovery, current);
+            if (cwbAlwaysEnabledByName.Count > 0)
+            {
+                await _logger.LogAsync(
+                    $"CWB packs forced enabled (name-based): {string.Join(", ", cwbAlwaysEnabledByName.OrderBy(id => id, StringComparer.Ordinal))}");
+            }
+
+            var enabledForFolderState = resolvedEnabledSet.ToHashSet(StringComparer.Ordinal);
+            foreach (var cwbPackId in cwbDiscovery.PackWorkshopIds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                enabledForFolderState.Add(cwbPackId);
+            }
+
+            // Keep excluded CWB add-ons enabled in both folder state and loaditems sync.
+            foreach (var workshopId in cwbAlwaysEnabledByName)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                enabledForFolderState.Add(workshopId);
+                resolvedEnabledSet.Add(workshopId);
+            }
+
+            var usesCustomWeaponsBase = resolvedEnabledSet.Contains(CwbLoadItemsService.CustomWeaponsBaseWorkshopId);
+            var changes = 0;
+            if (usesCustomWeaponsBase)
+            {
+                var forceEnabledFolderIds = current
+                    .Select(mod => mod.WorkshopId)
+                    .Where(IsNumericWorkshopId)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                await _logger.WarnAsync(
+                    "CWB mode active: forcing all workshop folders enabled (removing # prefixes) to avoid CWB folder-path crashes.");
+
+                changes = await _renameEngine.ApplyEnabledSetAsync(
+                    ActiveWorkshopPath,
+                    current,
+                    forceEnabledFolderIds,
+                    disableUnselectedMods: true,
+                    (line, token) => _logger.LogAsync(line, token),
+                    cancellationToken);
+            }
+            else
+            {
+                changes = await _renameEngine.ApplyEnabledSetAsync(
+                    ActiveWorkshopPath,
+                    current,
+                    enabledForFolderState,
+                    disableUnselectedMods: true,
+                    (line, token) => _logger.LogAsync(line, token),
+                    cancellationToken);
+            }
 
             await _logger.LogAsync($"Apply finished with {changes} rename operations");
             var cwbSyncResult = await _cwbLoadItemsService.SyncAsync(
                 ActiveWorkshopPath,
                 cwbDiscovery,
-                resolvedEnabledSet);
+                resolvedEnabledSet,
+                cancellationToken);
             if (cwbSyncResult.Success)
             {
                 await _logger.LogAsync(cwbSyncResult.Message);
@@ -1247,16 +1411,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 await _logger.LogAsync($"CWB loaditems sync skipped: {cwbSyncResult.Message}");
             }
 
-            var applied = await _scanner.ScanAsync(ActiveWorkshopPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            var applied = await _scanner.ScanAsync(ActiveWorkshopPath, cancellationToken);
             var enabledAfterApply = applied
                 .Where(mod => mod.IsEnabled)
                 .Select(mod => mod.WorkshopId)
                 .ToHashSet(StringComparer.Ordinal);
+            var loadOnStartEnabledIds = usesCustomWeaponsBase
+                ? resolvedEnabledSet.ToHashSet(StringComparer.Ordinal)
+                : enabledAfterApply;
 
-            var syncResult = await _loadOnStartSyncService.SyncAsync(enabledAfterApply);
+            var syncResult = await _loadOnStartSyncService.SyncAsync(loadOnStartEnabledIds, cancellationToken);
             if (syncResult.Success)
             {
-                await _logger.LogAsync($"{syncResult.Message} Enabled workshop ids: {enabledAfterApply.Count}");
+                await _logger.LogAsync($"{syncResult.Message} Enabled workshop ids: {loadOnStartEnabledIds.Count}");
             }
             else
             {
@@ -1268,6 +1436,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             await _logger.LogAsync(
                 $"Apply result ({applyContext}): requested={requiredIds.Count}, enabledAfterApply={enabledAfterApply.Count}, missingAfterApply={missingAfterApply.Count}");
 
+            cancellationToken.ThrowIfCancellationRequested();
             await RefreshModsAsync();
         }
         finally
@@ -1523,6 +1692,52 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         return requestedEnabledSet;
+    }
+
+    private static HashSet<string> BuildCwbPackFolderToggleExclusions(
+        CwbPackDiscoveryResult discovery,
+        IReadOnlyList<WorkshopMod>? current)
+    {
+        var excludedIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var pair in discovery.PackNamesByWorkshopId)
+        {
+            if (pair.Value.Any(IsExcludedCwbPackName))
+            {
+                excludedIds.Add(pair.Key);
+            }
+        }
+
+        if (current is null || current.Count == 0)
+        {
+            return excludedIds;
+        }
+
+        foreach (var mod in current)
+        {
+            if (!discovery.PackWorkshopIds.Contains(mod.WorkshopId))
+            {
+                continue;
+            }
+
+            if (IsExcludedCwbPackName(mod.DisplayName))
+            {
+                excludedIds.Add(mod.WorkshopId);
+            }
+        }
+
+        return excludedIds;
+    }
+
+    private static bool IsExcludedCwbPackName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return CwbPackFolderToggleExcludeNameTokens.Any(token =>
+            value.Contains(token, StringComparison.OrdinalIgnoreCase));
     }
 
     private static ProfileImportConflictPolicy ParseConflictPolicy(string? value)

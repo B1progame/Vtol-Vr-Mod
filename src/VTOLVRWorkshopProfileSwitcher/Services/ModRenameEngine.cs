@@ -10,12 +10,11 @@ namespace VTOLVRWorkshopProfileSwitcher.Services;
 
 public sealed class ModRenameEngine
 {
-    private const string DisabledPrefix = "_OFF_";
-
     public async Task<int> ApplyEnabledSetAsync(
         string workshopPath,
         IReadOnlyCollection<WorkshopMod> currentMods,
         IReadOnlySet<string> enabledIds,
+        bool disableUnselectedMods = true,
         Func<string, CancellationToken, Task>? logAsync = null,
         CancellationToken cancellationToken = default)
     {
@@ -33,8 +32,9 @@ public sealed class ModRenameEngine
         {
             cancellationToken.ThrowIfCancellationRequested();
             var workshopId = modGroup.Key;
-            var shouldEnable = enabledIds.Contains(workshopId);
-            var targetName = shouldEnable ? workshopId : $"{DisabledPrefix}{workshopId}";
+            // Folder-based disable state is intentionally disabled.
+            // Keep all workshop folders canonical and enabled by id only.
+            var targetName = workshopId;
             var targetPath = Path.Combine(workshopPath, targetName);
             var groupEntries = modGroup.ToList();
             var targetEntry = groupEntries.FirstOrDefault(entry =>
@@ -42,11 +42,9 @@ public sealed class ModRenameEngine
 
             if (targetEntry is null)
             {
-                var sourceEntry = shouldEnable
-                    ? groupEntries.FirstOrDefault(entry => !entry.IsEnabled)
-                    : groupEntries.FirstOrDefault(entry => entry.IsEnabled);
-
-                sourceEntry ??= groupEntries.FirstOrDefault();
+                var sourceEntry = groupEntries
+                    .OrderByDescending(entry => entry.IsEnabled)
+                    .FirstOrDefault();
                 if (sourceEntry is not null)
                 {
                     var sourcePath = Path.Combine(workshopPath, sourceEntry.FolderName);

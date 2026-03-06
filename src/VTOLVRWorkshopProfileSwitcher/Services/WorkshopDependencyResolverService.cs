@@ -10,7 +10,7 @@ namespace VTOLVRWorkshopProfileSwitcher.Services;
 
 public sealed class WorkshopDependencyResolverService
 {
-    private const string DisabledPrefix = "_OFF_";
+    private const string DisabledPrefix = "#";
     private const string ItemMetadataFileName = "item.json";
     private static readonly string[] DependencyPropertyNames =
     {

@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+        x:Class="VTOLVRWorkshopProfileSwitcher.Views.AddProfileWindow"
+        x:DataType="vm:AddProfileDialogViewModel"
+        x:CompileBindings="False"
+        Width="460"
+        Height="300"
+        MinWidth="420"
+        MinHeight="270"
+        Title="Add Profile"
+        CanResize="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        mc:Ignorable="d">
+  <Border Classes="card-panel" Margin="14" Padding="14">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+      <TextBlock Text="Add Profile" Classes="section-title" />
+      <TextBlock Grid.Row="1" Margin="0,2,0,0" Text="Create a new profile from your current mod selection." Classes="text-muted" />
+
+      <StackPanel Grid.Row="2" Margin="0,12,0,0" Spacing="8">
+        <CheckBox Content="Activate all mods" IsChecked="{Binding ActivateAllMods}" />
+        <TextBox Text="{Binding ProfileName}" Watermark="Profile name" />
+        <TextBox Text="{Binding Notes}" Watermark="Notes" />
+      </StackPanel>
+
+      <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto">
+        <Button Grid.Column="1" Content="Cancel" Classes="secondary-button" Click="OnCancelClicked" />
+        <Button Grid.Column="2" Content="Create" Classes="primary-button" Click="OnCreateClicked" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

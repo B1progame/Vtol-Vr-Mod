@@ -101,7 +101,8 @@ public sealed partial class MainWindowViewModel
         !SelectedProfileModEntry.IsDependencyOnly;
     public string ProfileUnderEditText => ProfileUnderEdit is null ? "No profile selected" : $"Editing: {ProfileUnderEdit.Name}";
     public bool CanLaunchGame => true;
-    public string SidebarPlayText => GetLaunchButtonText("Play", LaunchHoverTargetSidebar);
+    public bool CanOpenLaunchFlyout => !IsLaunchingGame && !IsVtolRunning;
+    public string SidebarPlayText => IsLaunchingGame ? "Cancel" : (IsVtolRunning ? "STOP" : "Play");
     public string PlayModdedButtonText => GetLaunchButtonText("PLAY (MODDED)", LaunchHoverTargetModded);
     public string PlayVanillaButtonText => GetLaunchButtonText("PLAY (VANILLA)", LaunchHoverTargetVanilla);
     public string SelectedModTitle => SelectedMod?.ModName ?? "No Mod Selected";
@@ -183,6 +184,15 @@ public sealed partial class MainWindowViewModel
         }
 
         OnPropertyChanged(nameof(CanLaunchGame));
+        OnPropertyChanged(nameof(CanOpenLaunchFlyout));
+        OnPropertyChanged(nameof(SidebarPlayText));
+        OnPropertyChanged(nameof(PlayModdedButtonText));
+        OnPropertyChanged(nameof(PlayVanillaButtonText));
+    }
+
+    partial void OnIsVtolRunningChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanOpenLaunchFlyout));
         OnPropertyChanged(nameof(SidebarPlayText));
         OnPropertyChanged(nameof(PlayModdedButtonText));
         OnPropertyChanged(nameof(PlayVanillaButtonText));
@@ -219,7 +229,7 @@ public sealed partial class MainWindowViewModel
     {
         if (!IsLaunchingGame)
         {
-            return idleText;
+            return IsVtolRunning ? "STOP" : idleText;
         }
 
         return string.Equals(LaunchButtonHoverTarget, launchTarget, StringComparison.Ordinal)
@@ -1265,18 +1275,24 @@ public sealed partial class MainWindowViewModel
         SelectedLogEntry = AllLogs.Count > 0 ? AllLogs[^1] : null;
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task PlayAsync()
     {
         await PlayModdedAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task PlayModdedAsync()
     {
         if (IsLaunchingGame)
         {
             RequestLaunchCancel("modded");
+            return;
+        }
+
+        if (IsVtolRunning)
+        {
+            await StopVtolVrAsync();
             return;
         }
 
@@ -1310,7 +1326,7 @@ public sealed partial class MainWindowViewModel
             }
 
             SelectedProfile = profileToUse;
-            await ApplySelectedProfileAsync();
+            await ApplySelectedProfileAsync(launchToken);
             if (IsLaunchCanceled(launchToken, "Modded launch canceled"))
             {
                 return;
@@ -1323,8 +1339,14 @@ public sealed partial class MainWindowViewModel
             }
 
             LaunchVtolVr(doorstopEnabled: true);
+            StartVtolExitCleanupWatcher();
+            await TryCloseModManagerIfRunningAsync();
             await _logger.LogAsync($"Launched VTOL VR modded with profile '{profileToUse.Name}'");
             await ReloadLogsAsync();
+        }
+        catch (OperationCanceledException) when (launchToken.IsCancellationRequested)
+        {
+            StatusMessage = "Modded launch canceled";
         }
         finally
         {
@@ -1332,12 +1354,18 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task PlayVanillaAsync()
     {
         if (IsLaunchingGame)
         {
             RequestLaunchCancel("vanilla");
+            return;
+        }
+
+        if (IsVtolRunning)
+        {
+            await StopVtolVrAsync();
             return;
         }
 
@@ -1348,7 +1376,11 @@ public sealed partial class MainWindowViewModel
 
         try
         {
-            await ApplyEnabledSetAsync(new HashSet<string>(StringComparer.Ordinal), Array.Empty<string>(), "vanilla launch");
+            await ApplyEnabledSetAsync(
+                new HashSet<string>(StringComparer.Ordinal),
+                Array.Empty<string>(),
+                "vanilla launch",
+                launchToken);
             if (IsLaunchCanceled(launchToken, "Vanilla launch canceled"))
             {
                 return;
@@ -1361,8 +1393,13 @@ public sealed partial class MainWindowViewModel
             }
 
             LaunchVtolVr(doorstopEnabled: false);
+            StartVtolExitCleanupWatcher();
             await _logger.LogAsync("Launched VTOL VR vanilla");
             await ReloadLogsAsync();
+        }
+        catch (OperationCanceledException) when (launchToken.IsCancellationRequested)
+        {
+            StatusMessage = "Vanilla launch canceled";
         }
         finally
         {
@@ -1388,6 +1425,8 @@ public sealed partial class MainWindowViewModel
                 Arguments = arguments,
                 UseShellExecute = false
             });
+
+            TryLaunchSteamQueries();
             return;
         }
 
@@ -1396,6 +1435,435 @@ public sealed partial class MainWindowViewModel
             FileName = "steam://run/667970",
             UseShellExecute = true
         });
+
+        TryLaunchSteamQueries();
+    }
+
+    private void StartVtolRunningMonitor()
+    {
+        _vtolRunningMonitorCts?.Cancel();
+        _vtolRunningMonitorCts?.Dispose();
+        _vtolRunningMonitorCts = new CancellationTokenSource();
+        _ = MonitorVtolRunningAsync(_vtolRunningMonitorCts.Token);
+    }
+
+    private async Task MonitorVtolRunningAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var running = IsVtolProcessRunning();
+                if (running != IsVtolRunning)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() => IsVtolRunning = running);
+                }
+
+                await Task.Delay(1000, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // View model is shutting down.
+        }
+    }
+
+    private static bool IsVtolProcessRunning()
+    {
+        var processes = Process.GetProcessesByName("VTOLVR");
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private async Task StopVtolVrAsync()
+    {
+        var processes = Process.GetProcessesByName("VTOLVR");
+        if (processes.Length == 0)
+        {
+            StatusMessage = "VTOL VR is not running";
+            IsVtolRunning = false;
+            return;
+        }
+
+        var stoppedCount = 0;
+        foreach (var process in processes)
+        {
+            try
+            {
+                if (process.HasExited)
+                {
+                    continue;
+                }
+
+                if (process.CloseMainWindow())
+                {
+                    process.WaitForExit(2000);
+                }
+
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(2000);
+                }
+
+                stoppedCount++;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync($"Failed to stop VTOLVR process (PID {process.Id}): {ex.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        IsVtolRunning = IsVtolProcessRunning();
+        StatusMessage = stoppedCount > 0 ? "Stopped VTOL VR" : "Failed to stop VTOL VR";
+        await _logger.LogAsync(stoppedCount > 0
+            ? $"Stopped VTOL VR process(es): {stoppedCount}"
+            : "Failed to stop VTOL VR process");
+        await ReloadLogsAsync();
+    }
+
+    private void StartVtolExitCleanupWatcher()
+    {
+        _vtolExitCleanupCts?.Cancel();
+        _vtolExitCleanupCts?.Dispose();
+        _vtolExitCleanupCts = new CancellationTokenSource();
+        _ = WatchForVtolExitAndRestoreModsAsync(_vtolExitCleanupCts.Token);
+    }
+
+    private async Task WatchForVtolExitAndRestoreModsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            const int maxStartWaitAttempts = 120; // ~2 minutes
+            var seenRunning = false;
+
+            for (var attempt = 0; attempt < maxStartWaitAttempts; attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var probe = Process.GetProcessesByName("VTOLVR");
+                try
+                {
+                    if (probe.Length > 0)
+                    {
+                        seenRunning = true;
+                        break;
+                    }
+                }
+                finally
+                {
+                    foreach (var process in probe)
+                    {
+                        process.Dispose();
+                    }
+                }
+
+                await Task.Delay(1000, cancellationToken);
+            }
+
+            if (!seenRunning)
+            {
+                await _logger.LogAsync("VTOL exit watcher: VTOLVR process not detected after launch; skipping # prefix cleanup.");
+                return;
+            }
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var active = Process.GetProcessesByName("VTOLVR");
+                try
+                {
+                    if (active.Length == 0)
+                    {
+                        break;
+                    }
+                }
+                finally
+                {
+                    foreach (var process in active)
+                    {
+                        process.Dispose();
+                    }
+                }
+
+                await Task.Delay(1500, cancellationToken);
+            }
+
+            await RestoreDisabledModFoldersAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // View model is shutting down or a newer launch replaced this watcher.
+        }
+        catch (Exception ex)
+        {
+            await _logger.LogAsync($"VTOL exit watcher failed: {ex.Message}");
+        }
+    }
+
+    private async Task RestoreDisabledModFoldersAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ActiveWorkshopPath) ||
+            string.Equals(ActiveWorkshopPath, "Not detected", StringComparison.OrdinalIgnoreCase) ||
+            !Directory.Exists(ActiveWorkshopPath))
+        {
+            await _logger.LogAsync("VTOL exit cleanup skipped: active workshop path is unavailable.");
+            return;
+        }
+
+        var folderNames = await Task.Run(
+            () => Directory.EnumerateDirectories(ActiveWorkshopPath).Select(Path.GetFileName).ToList(),
+            cancellationToken);
+
+        var parsedMods = new List<WorkshopMod>(folderNames.Count);
+        foreach (var folderName in folderNames)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                continue;
+            }
+
+            if (!WorkshopScanner.TryGetWorkshopId(folderName, out var workshopId, out var isEnabled))
+            {
+                continue;
+            }
+
+            parsedMods.Add(new WorkshopMod
+            {
+                WorkshopId = workshopId,
+                FolderName = folderName,
+                FullPath = Path.Combine(ActiveWorkshopPath, folderName),
+                IsEnabled = isEnabled,
+                DisplayName = $"Mod {workshopId}"
+            });
+        }
+
+        if (parsedMods.Count == 0)
+        {
+            return;
+        }
+
+        var allIds = parsedMods
+            .Select(mod => mod.WorkshopId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (allIds.Count == 0)
+        {
+            return;
+        }
+
+        var renamedCount = await _renameEngine.ApplyEnabledSetAsync(
+            ActiveWorkshopPath,
+            parsedMods,
+            allIds,
+            disableUnselectedMods: false,
+            logAsync: (message, token) => _logger.LogAsync(message),
+            cancellationToken: cancellationToken);
+
+        if (renamedCount > 0)
+        {
+            await _logger.LogAsync($"VTOL exit cleanup: removed # prefix from {renamedCount} mod folders.");
+        }
+    }
+
+    private void TryLaunchSteamQueries()
+    {
+        var steamQueriesExePath = ResolveSteamQueriesExePath();
+        if (string.IsNullOrWhiteSpace(steamQueriesExePath) || !File.Exists(steamQueriesExePath))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = steamQueriesExePath,
+                WorkingDirectory = Path.GetDirectoryName(steamQueriesExePath) ?? string.Empty,
+                UseShellExecute = false
+            });
+        }
+        catch
+        {
+            // Optional helper launch should never block game launch.
+        }
+    }
+
+    private async Task TryCloseModManagerIfRunningAsync()
+    {
+        var modManagerExePath = ResolveModManagerExePath();
+        if (string.IsNullOrWhiteSpace(modManagerExePath))
+        {
+            return;
+        }
+
+        var expectedPath = Path.GetFullPath(modManagerExePath);
+        var candidates = Process.GetProcessesByName("Mod Manager");
+        if (candidates.Length == 0)
+        {
+            return;
+        }
+
+        var warningPrefix = "[WARNING]";
+        Console.WriteLine($"{warningPrefix} Mod Manager is running after modded launch, closing it.");
+        await _logger.LogAsync("WARNING: Mod Manager is running after modded launch, closing it.");
+
+        foreach (var process in candidates)
+        {
+            try
+            {
+                var processPath = string.Empty;
+                try
+                {
+                    processPath = process.MainModule?.FileName ?? string.Empty;
+                }
+                catch
+                {
+                    // Ignore path probe issues and continue with process name match.
+                }
+
+                if (!string.IsNullOrWhiteSpace(processPath))
+                {
+                    var normalizedProcessPath = Path.GetFullPath(processPath);
+                    if (!string.Equals(normalizedProcessPath, expectedPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+
+                if (process.HasExited)
+                {
+                    continue;
+                }
+
+                if (process.CloseMainWindow())
+                {
+                    process.WaitForExit(1500);
+                }
+
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(1500);
+                }
+
+                Console.WriteLine($"{warningPrefix} Closed Mod Manager (PID {process.Id}).");
+                await _logger.LogAsync($"WARNING: Closed Mod Manager (PID {process.Id}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{warningPrefix} Failed to close Mod Manager (PID {process.Id}): {ex.Message}");
+                await _logger.LogAsync($"WARNING: Failed to close Mod Manager (PID {process.Id}): {ex.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private string ResolveModManagerExePath()
+    {
+        var candidates = new List<string>();
+
+        var fromDoorstopConfig = ResolveDoorstopConfigPath();
+        if (!string.IsNullOrWhiteSpace(fromDoorstopConfig))
+        {
+            try
+            {
+                var vtolDir = Path.GetDirectoryName(fromDoorstopConfig);
+                if (!string.IsNullOrWhiteSpace(vtolDir))
+                {
+                    candidates.Add(Path.Combine(vtolDir, "@Mod Loader", "Mod Manager", "Mod Manager.exe"));
+                }
+            }
+            catch
+            {
+                // Fall through to default candidates.
+            }
+        }
+
+        candidates.Add(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Steam",
+            "steamapps",
+            "common",
+            "VTOL VR",
+            "@Mod Loader",
+            "Mod Manager",
+            "Mod Manager.exe"));
+        candidates.Add(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "Steam",
+            "steamapps",
+            "common",
+            "VTOL VR",
+            "@Mod Loader",
+            "Mod Manager",
+            "Mod Manager.exe"));
+
+        return candidates.FirstOrDefault(File.Exists) ?? string.Empty;
+    }
+
+    private string ResolveSteamQueriesExePath()
+    {
+        var candidates = new List<string>();
+
+        var fromDoorstopConfig = ResolveDoorstopConfigPath();
+        if (!string.IsNullOrWhiteSpace(fromDoorstopConfig))
+        {
+            try
+            {
+                var vtolDir = Path.GetDirectoryName(fromDoorstopConfig);
+                if (!string.IsNullOrWhiteSpace(vtolDir))
+                {
+                    candidates.Add(Path.Combine(vtolDir, "@Mod Loader", "SteamQueries", "SteamQueries.exe"));
+                }
+            }
+            catch
+            {
+                // Fall through to default candidates.
+            }
+        }
+
+        candidates.Add(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Steam",
+            "steamapps",
+            "common",
+            "VTOL VR",
+            "@Mod Loader",
+            "SteamQueries",
+            "SteamQueries.exe"));
+        candidates.Add(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "Steam",
+            "steamapps",
+            "common",
+            "VTOL VR",
+            "@Mod Loader",
+            "SteamQueries",
+            "SteamQueries.exe"));
+
+        return candidates.FirstOrDefault(File.Exists) ?? string.Empty;
     }
 
     private string ResolveSteamExePath()

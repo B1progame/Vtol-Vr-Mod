@@ -330,6 +330,20 @@
       <Setter Property="Background" Value="#17202A" />
     </Style>
 
+    <Style Selector="Button.split-button-main.stop-state">
+      <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
+      <Setter Property="BorderBrush" Value="#E18A91" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+
+    <Style Selector="Button.split-button-main.stop-state:pointerover">
+      <Setter Property="Background" Value="#B24C58" />
+    </Style>
+
+    <Style Selector="Button.split-button-main.stop-state:pressed">
+      <Setter Property="Background" Value="#8F2F3A" />
+    </Style>
+
     <Style Selector="Border.launch-flyout-panel">
       <Setter Property="Padding" Value="12" />
       <Setter Property="CornerRadius" Value="12" />

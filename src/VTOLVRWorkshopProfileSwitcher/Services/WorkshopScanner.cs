@@ -14,7 +14,7 @@ namespace VTOLVRWorkshopProfileSwitcher.Services;
 
 public sealed class WorkshopScanner
 {
-    private const string DisabledPrefix = "_OFF_";
+    private const string DisabledPrefix = "#";
     private const string SteamWorkshopApi = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
     private static readonly HttpClient HttpClient = new();
     private static readonly CwbLoadItemsService CwbLoadItemsService = new();
