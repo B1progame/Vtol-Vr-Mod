@@ -33,6 +33,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private const string GitHubRepoName = "Vtol-Vr-Mod";
     private const string ReleasesPageUrl = "https://github.com/B1progame/Vtol-Vr-Mod/releases";
     private const string DefaultInstallerAssetName = "VTOLVRSwitcher-Setup.exe";
+    private const int DowngradeReleasePageSize = 50;
     private static readonly string[] CwbPackFolderToggleExcludeNameTokens =
     {
         "cwb addon",
@@ -170,6 +171,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private string latestInstallerFileName = string.Empty;
 
     [ObservableProperty]
+    private ObservableCollection<ReleaseInstallOption> downgradeReleaseOptions = new();
+
+    [ObservableProperty]
+    private ReleaseInstallOption? selectedDowngradeRelease;
+
+    [ObservableProperty]
+    private bool isLoadingDowngradeReleases;
+
+    [ObservableProperty]
     private string selectedImportConflictPolicy = "Rename";
 
     [ObservableProperty]
@@ -194,6 +204,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public string AppCreatedOn => "2026-02-15";
     public string CurrentVersionText => $"v{CurrentAppVersion.Major}.{CurrentAppVersion.Minor}.{CurrentAppVersion.Build}";
     public string CurrentVersionIdText => CurrentVersionId;
+    public bool CanInstallSelectedDowngrade => SelectedDowngradeRelease is not null && !IsLoadingDowngradeReleases;
 
     public MainWindowViewModel()
     {
@@ -344,6 +355,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     partial void OnAutoInstallUpdatesChanged(bool value)
     {
         SaveSettingsIfNeeded();
+    }
+
+    partial void OnSelectedDowngradeReleaseChanged(ReleaseInstallOption? value)
+    {
+        OnPropertyChanged(nameof(CanInstallSelectedDowngrade));
+    }
+
+    partial void OnIsLoadingDowngradeReleasesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanInstallSelectedDowngrade));
     }
 
     partial void OnSelectedVrRuntimeChanged(string value)
@@ -1449,6 +1470,122 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand]
+    private async Task ManualUpdateAsync()
+    {
+        if (IsCheckingForUpdates || IsDownloadingUpdate)
+        {
+            return;
+        }
+
+        IsCheckingForUpdates = true;
+        try
+        {
+            UpdateStatusText = "Checking latest release for manual update...";
+            var latest = await TryGetLatestReleaseAsync();
+            if (latest is null)
+            {
+                UpdateStatusText = "No GitHub releases published yet.";
+                return;
+            }
+
+            LatestReleaseVersion = string.IsNullOrWhiteSpace(latest.Value.TagName) ? "Unknown" : latest.Value.TagName;
+            LatestReleaseUrl = string.IsNullOrWhiteSpace(latest.Value.HtmlUrl) ? ReleasesPageUrl : latest.Value.HtmlUrl;
+            LatestInstallerUrl = latest.Value.InstallerUrl;
+            LatestInstallerFileName = latest.Value.InstallerName;
+
+            if (string.IsNullOrWhiteSpace(LatestInstallerUrl))
+            {
+                UpdateStatusText = "Latest release has no installer asset (.exe).";
+                return;
+            }
+
+            HasUpdateAvailable = IsUpdateAvailable(LatestReleaseVersion, CurrentAppVersion, CurrentVersionId);
+            CanAutoInstallUpdate = HasUpdateAvailable;
+            await DownloadAndInstallUpdateAsync();
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode.HasValue)
+        {
+            UpdateStatusText = $"Manual update check failed ({(int)ex.StatusCode.Value})";
+        }
+        catch
+        {
+            UpdateStatusText = "Manual update failed. Please try again.";
+        }
+        finally
+        {
+            IsCheckingForUpdates = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadDowngradeReleasesAsync()
+    {
+        if (IsLoadingDowngradeReleases || IsCheckingForUpdates || IsDownloadingUpdate)
+        {
+            return;
+        }
+
+        IsLoadingDowngradeReleases = true;
+        try
+        {
+            UpdateStatusText = "Loading downgrade versions...";
+            var releases = await TryGetReleasesAsync(DowngradeReleasePageSize);
+            var downgradeOptions = releases
+                .Where(release => !string.IsNullOrWhiteSpace(release.InstallerUrl))
+                .Select(release => new
+                {
+                    Release = release,
+                    Version = ParseVersion(release.TagName)
+                })
+                .Where(item => item.Version is not null && item.Version < CurrentAppVersion)
+                .OrderByDescending(item => item.Version)
+                .Select(item => new ReleaseInstallOption(
+                    item.Release.TagName,
+                    $"{item.Release.TagName} ({item.Release.InstallerName})",
+                    item.Release.InstallerUrl,
+                    item.Release.InstallerName,
+                    item.Release.HtmlUrl))
+                .ToList();
+
+            DowngradeReleaseOptions = new ObservableCollection<ReleaseInstallOption>(downgradeOptions);
+            SelectedDowngradeRelease = DowngradeReleaseOptions.FirstOrDefault();
+            UpdateStatusText = DowngradeReleaseOptions.Count == 0
+                ? "No downgrade versions with installer assets were found."
+                : $"Loaded {DowngradeReleaseOptions.Count} downgrade version(s).";
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode.HasValue)
+        {
+            UpdateStatusText = $"Failed to load downgrade versions ({(int)ex.StatusCode.Value})";
+        }
+        catch
+        {
+            UpdateStatusText = "Failed to load downgrade versions.";
+        }
+        finally
+        {
+            IsLoadingDowngradeReleases = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallSelectedDowngradeAsync()
+    {
+        if (IsDownloadingUpdate || SelectedDowngradeRelease is null)
+        {
+            return;
+        }
+
+        AutoInstallUpdates = false;
+        HasUpdateAvailable = false;
+        CanAutoInstallUpdate = false;
+        LatestReleaseVersion = SelectedDowngradeRelease.TagName;
+        LatestReleaseUrl = SelectedDowngradeRelease.HtmlUrl;
+        LatestInstallerUrl = SelectedDowngradeRelease.InstallerUrl;
+        LatestInstallerFileName = SelectedDowngradeRelease.InstallerName;
+        await DownloadAndInstallUpdateAsync();
+    }
+
     private async Task PrimeModManagerBeforeLoadOnStartSyncAsync()
     {
         var modManagerExePath = ResolveModManagerExePath();
@@ -2224,7 +2361,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 latestResponse.StatusCode);
         }
 
-        var listUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepoName}/releases?per_page=1";
+        var fallbackReleases = await TryGetReleasesAsync(1);
+        if (fallbackReleases.Count == 0)
+        {
+            return null;
+        }
+
+        var first = fallbackReleases[0];
+        return (first.TagName, first.HtmlUrl, first.InstallerUrl, first.InstallerName);
+    }
+
+    private async Task<IReadOnlyList<ReleaseInfo>> TryGetReleasesAsync(int perPage)
+    {
+        var listUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepoName}/releases?per_page={perPage}";
         using var listResponse = await GitHubHttpClient.GetAsync(listUrl);
         if (!listResponse.IsSuccessStatusCode)
         {
@@ -2234,19 +2383,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 listResponse.StatusCode);
         }
 
-        await using var listStream = await listResponse.Content.ReadAsStreamAsync();
-        using var listDoc = await JsonDocument.ParseAsync(listStream);
-        var root = listDoc.RootElement;
-        if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
-        {
-            return null;
-        }
-
-        var first = root[0];
-        var tag = first.TryGetProperty("tag_name", out var tagEl) ? tagEl.GetString() : null;
-        var html = first.TryGetProperty("html_url", out var htmlEl) ? htmlEl.GetString() : null;
-        var (installerUrl, installerName) = ReadInstallerAsset(first);
-        return (tag ?? string.Empty, html ?? ReleasesPageUrl, installerUrl, installerName);
+        return await ReadReleaseListAsync(listResponse);
     }
 
     private static async Task<(string TagName, string HtmlUrl, string InstallerUrl, string InstallerName)> ReadReleaseAsync(HttpResponseMessage response)
@@ -2258,6 +2395,43 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var html = root.TryGetProperty("html_url", out var htmlEl) ? htmlEl.GetString() : null;
         var (installerUrl, installerName) = ReadInstallerAsset(root);
         return (tag ?? string.Empty, html ?? ReleasesPageUrl, installerUrl, installerName);
+    }
+
+    private static async Task<IReadOnlyList<ReleaseInfo>> ReadReleaseListAsync(HttpResponseMessage response)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var doc = await JsonDocument.ParseAsync(stream);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
+        {
+            return Array.Empty<ReleaseInfo>();
+        }
+
+        var releases = new List<ReleaseInfo>(root.GetArrayLength());
+        foreach (var release in root.EnumerateArray())
+        {
+            if (release.TryGetProperty("draft", out var draftEl) &&
+                draftEl.ValueKind == JsonValueKind.True)
+            {
+                continue;
+            }
+
+            var tag = release.TryGetProperty("tag_name", out var tagEl) ? tagEl.GetString() : null;
+            if (!HasSupportedUpdateTagFormat(tag))
+            {
+                continue;
+            }
+
+            var html = release.TryGetProperty("html_url", out var htmlEl) ? htmlEl.GetString() : null;
+            var (installerUrl, installerName) = ReadInstallerAsset(release);
+            releases.Add(new ReleaseInfo(
+                tag ?? string.Empty,
+                html ?? ReleasesPageUrl,
+                installerUrl,
+                installerName));
+        }
+
+        return releases;
     }
 
     private static (string InstallerUrl, string InstallerName) ReadInstallerAsset(JsonElement releaseRoot)
@@ -2293,5 +2467,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         return (preferred.Url, preferred.Name);
     }
+
+    public sealed record ReleaseInstallOption(
+        string TagName,
+        string DisplayName,
+        string InstallerUrl,
+        string InstallerName,
+        string HtmlUrl);
+
+    private readonly record struct ReleaseInfo(
+        string TagName,
+        string HtmlUrl,
+        string InstallerUrl,
+        string InstallerName);
 }
 

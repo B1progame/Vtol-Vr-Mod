@@ -57,6 +57,21 @@
           <Button Content="Check For Update" Classes="primary-button" Command="{Binding Shell.CheckForUpdatesCommand}" />
           <Button Content="Install Update" Classes="warning-button" IsVisible="{Binding Shell.CanAutoInstallUpdate}" Command="{Binding Shell.DownloadAndInstallUpdateCommand}" />
         </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Manual Update" Classes="primary-button" Command="{Binding Shell.ManualUpdateCommand}" />
+          <Button Content="Load Downgrade List" Classes="primary-button" Command="{Binding Shell.LoadDowngradeReleasesCommand}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ComboBox Width="300"
+                    MaxDropDownHeight="280"
+                    ItemsSource="{Binding Shell.DowngradeReleaseOptions}"
+                    SelectedItem="{Binding Shell.SelectedDowngradeRelease}"
+                    DisplayMemberBinding="{Binding DisplayName}" />
+          <Button Content="Install Downgrade"
+                  Classes="warning-button"
+                  IsEnabled="{Binding Shell.CanInstallSelectedDowngrade}"
+                  Command="{Binding Shell.InstallSelectedDowngradeCommand}" />
+        </StackPanel>
       </StackPanel>
     </Border>
   </Grid>
