@@ -12,6 +12,7 @@ $publishRoot = Join-Path $PSScriptRoot "..\publish"
 $publishDir = Join-Path $publishRoot ("win-x64-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 $issPath = Join-Path $PSScriptRoot "..\installer\VTOLVRWorkshopProfileSwitcher.iss"
 $iconPath = Join-Path $PSScriptRoot "..\src\VTOLVRWorkshopProfileSwitcher\Assets\AppIcon.ico"
+$licensePath = Join-Path $PSScriptRoot "..\LICENSE"
 
 $versionText = [string]$Version
 if ($null -eq $versionText) {
@@ -81,7 +82,7 @@ if (-not (Test-Path $InnoCompiler)) {
 }
 
 Write-Host "Building installer..."
-& $InnoCompiler "/DMyAppVersion=$versionText" "/DSourceDir=$publishDir" "/DIconFile=$iconPath" $issPath
+& $InnoCompiler "/DMyAppVersion=$versionText" "/DSourceDir=$publishDir" "/DIconFile=$iconPath" "/DLicenseFile=$licensePath" $issPath
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup compile failed with exit code $LASTEXITCODE"
 }

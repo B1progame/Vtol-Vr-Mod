@@ -14,6 +14,10 @@
   #define IconFile "src\\VTOLVRWorkshopProfileSwitcher\\Assets\\AppIcon.ico"
 #endif
 
+#ifndef LicenseFile
+  #define LicenseFile "LICENSE"
+#endif
+
 [Setup]
 AppId={{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}
 AppName=VTOL VR Switcher
@@ -34,6 +38,7 @@ ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\VTOLVRWorkshopProfileSwitcher.exe
 SetupIconFile={#IconFile}
+LicenseFile={#LicenseFile}
 VersionInfoCompany={#PublisherName}
 VersionInfoDescription=VTOL VR Switcher Installer
 VersionInfoProductName=VTOL VR Switcher

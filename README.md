@@ -6,17 +6,18 @@ If you like this project, please consider giving it a star on GitHub. :star:
 
 ## TL;DR
 
-`VTOL VR Workshop Profile Switcher` scans your VTOL VR Workshop folder, lets you save named mod profiles, and applies them while keeping workshop folders in canonical `<WorkshopId>` naming. It also supports live refresh, logs, and snapshot backups before changes.
+`VTOL VR Workshop Profile Switcher` scans your local VTOL VR Mod Loader Workshop folder, lets you save named mod profiles, and applies them while keeping workshop folders in canonical `<WorkshopId>` naming. It also supports live refresh, logs, and snapshot backups before changes.
 
 ## Requirements
 
-This tool only helps you manage and switch between already downloaded mods. It requires the official VTOL VR Mod Loader and existing Workshop mods to function.
+This tool is only a profile switcher for mods you already installed. It does not include the VTOL VR Mod Loader itself.
 
-- Install the official VTOL VR Mod Loader from Steam first.
-- Download your mods through the Mod Loader before using this app.
+- Own VTOL VR on Steam.
+- Install [VTOL VR Mod Loader](https://store.steampowered.com/app/3018410/VTOL_VR_Mod_Loader/) from Steam first.
+- Subscribe to or download your mods through the VTOL VR Mod Loader / Steam Workshop before using this app.
 - This tool does not install, update, or download mods.
-- This app is a helper/profile manager for mods you already have.
-- It does not replace the official Mod Loader.
+- This app is a helper/profile manager for local Mod Loader Workshop content.
+- It does not replace, bundle, or modify the VTOL VR Mod Loader.
 
 ## Screenshots
 
@@ -119,10 +120,10 @@ Optional installer build (requires Inno Setup 6 and uses the current project ver
 
 ## Project Status and Legal Notes
 
-- This is an unofficial fan-made utility for managing locally installed VTOL VR workshop mod setups.
+- This is an unofficial fan-made utility for managing locally installed VTOL VR Mod Loader Workshop setups.
 - It is not affiliated with, endorsed by, or sponsored by Boundless Dynamics, LLC or Valve.
-- The app does not ship, download, decrypt, unlock, or redistribute VTOL VR, Workshop mods, or paid game content.
-- Users are responsible for following the terms for VTOL VR, Steam, Steam Workshop, and any mods they install.
+- The app does not ship, download, decrypt, unlock, or redistribute VTOL VR, the VTOL VR Mod Loader, Workshop mods, or paid game content.
+- Users are responsible for following the terms for VTOL VR, VTOL VR Mod Loader, Steam, Steam Workshop, and any mods they install.
 - `VTOL VR` and `Boundless Dynamics` are trademarks of Boundless Dynamics, LLC.
 
 ## Safe Usage, Backups, and Warnings
