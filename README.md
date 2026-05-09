@@ -93,7 +93,7 @@ Notes:
 
 ### Option 1: Use a Release Build (Recommended)
 
-1. Open the repo's `Releases` page.
+1. Open the repo's [Releases](https://github.com/B1progame/Vtol-Vr-Mod-Profiler/releases) page.
 2. Download the latest installer or packaged build for Windows.
 3. Install and launch `VTOLVRWorkshopProfileSwitcher`.
 
@@ -111,11 +111,19 @@ dotnet build .\VTOLVRWorkshopProfileSwitcher.sln -c Release
 dotnet run --project .\src\VTOLVRWorkshopProfileSwitcher\VTOLVRWorkshopProfileSwitcher.csproj
 ```
 
-Optional installer build (requires Inno Setup 6):
+Optional installer build (requires Inno Setup 6 and uses the current project version by default):
 
 ```powershell
-.\scripts\build-installer.ps1 -Configuration Release -Runtime win-x64 -Version 1.0.0
+.\scripts\build-installer.ps1 -Configuration Release -Runtime win-x64
 ```
+
+## Project Status and Legal Notes
+
+- This is an unofficial fan-made utility for managing locally installed VTOL VR workshop mod setups.
+- It is not affiliated with, endorsed by, or sponsored by Boundless Dynamics, LLC or Valve.
+- The app does not ship, download, decrypt, unlock, or redistribute VTOL VR, Workshop mods, or paid game content.
+- Users are responsible for following the terms for VTOL VR, Steam, Steam Workshop, and any mods they install.
+- `VTOL VR` and `Boundless Dynamics` are trademarks of Boundless Dynamics, LLC.
 
 ## Safe Usage, Backups, and Warnings
 
@@ -171,6 +179,11 @@ We want your feedback and ideas:
 - Do you have mockups or concept ideas we should explore?
 
 Please open a GitHub issue for feature suggestions, workflow ideas, UX suggestions, and concept/mockup proposals.
+
+Useful links:
+
+- Issues: <https://github.com/B1progame/Vtol-Vr-Mod-Profiler/issues>
+- Releases: <https://github.com/B1progame/Vtol-Vr-Mod-Profiler/releases>
 
 
 ## Contributing

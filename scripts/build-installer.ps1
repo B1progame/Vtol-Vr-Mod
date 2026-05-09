@@ -1,17 +1,33 @@
 param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
-    [string]$Version = "1.0.0",
+    [string]$Version = "",
     [string]$InnoCompiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 )
 
 $ErrorActionPreference = "Stop"
+
+$project = Join-Path $PSScriptRoot "..\src\VTOLVRWorkshopProfileSwitcher\VTOLVRWorkshopProfileSwitcher.csproj"
+$publishRoot = Join-Path $PSScriptRoot "..\publish"
+$publishDir = Join-Path $publishRoot ("win-x64-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+$issPath = Join-Path $PSScriptRoot "..\installer\VTOLVRWorkshopProfileSwitcher.iss"
+$iconPath = Join-Path $PSScriptRoot "..\src\VTOLVRWorkshopProfileSwitcher\Assets\AppIcon.ico"
 
 $versionText = [string]$Version
 if ($null -eq $versionText) {
     $versionText = string.Empty
 }
 $versionText = $versionText.Trim()
+
+if ([string]::IsNullOrWhiteSpace($versionText)) {
+    [xml]$projectXml = Get-Content -LiteralPath $project
+    $versionText = [string]$projectXml.Project.PropertyGroup.Version
+    if ($null -eq $versionText) {
+        $versionText = string.Empty
+    }
+    $versionText = $versionText.Trim()
+}
+
 if ([string]::IsNullOrWhiteSpace($versionText)) {
     throw "Version cannot be empty."
 }
@@ -31,12 +47,6 @@ $assemblyFileVersion = if ($parsedVersion.Revision -ge 0) {
 else {
     "{0}.{1}.{2}.0" -f $parsedVersion.Major, $parsedVersion.Minor, $parsedVersion.Build
 }
-
-$project = Join-Path $PSScriptRoot "..\src\VTOLVRWorkshopProfileSwitcher\VTOLVRWorkshopProfileSwitcher.csproj"
-$publishRoot = Join-Path $PSScriptRoot "..\publish"
-$publishDir = Join-Path $publishRoot ("win-x64-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-$issPath = Join-Path $PSScriptRoot "..\installer\VTOLVRWorkshopProfileSwitcher.iss"
-$iconPath = Join-Path $PSScriptRoot "..\src\VTOLVRWorkshopProfileSwitcher\Assets\AppIcon.ico"
 
 Write-Host "Stopping running app if present..."
 Get-Process VTOLVRWorkshopProfileSwitcher -ErrorAction SilentlyContinue | Stop-Process -Force
