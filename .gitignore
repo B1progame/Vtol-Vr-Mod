@@ -16,3 +16,9 @@
 **/obj/
 **/bin-weg/
 **/obj-weg/
+
+# Scripts
+*.bat
+*.sh
+*.ps1
+*.exe
