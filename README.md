@@ -1,8 +1,10 @@
 # VTOL VR Workshop Profile Switcher
 
+[![Discord](https://img.shields.io/discord/1503041994396795011?label=Discord&logo=discord&color=5865F2)](https://discord.gg/vf9dfUv6FK)
+
 Switch VTOL VR Steam Workshop mod setups in seconds using reusable profiles.
 
-If you like this project, please consider giving it a star on GitHub. :star:
+If you like this project, please consider giving it a star on GitHub or joining the [Discord community](https://discord.gg/vf9dfUv6FK).
 
 ## TL;DR
 
@@ -185,10 +187,11 @@ We want your feedback and ideas:
 - What UX changes would make the app easier to use?
 - Do you have mockups or concept ideas we should explore?
 
-Please open a GitHub issue for feature suggestions, workflow ideas, UX suggestions, and concept/mockup proposals.
+Please open a GitHub issue or join the Discord for feature suggestions, workflow ideas, UX suggestions, support, beta releases, and concept/mockup proposals.
 
 Useful links:
 
+- Discord: <https://discord.gg/vf9dfUv6FK>
 - Issues: <https://github.com/B1progame/Vtol-Vr-Mod-Profiler/issues>
 - Releases: <https://github.com/B1progame/Vtol-Vr-Mod-Profiler/releases>
 
