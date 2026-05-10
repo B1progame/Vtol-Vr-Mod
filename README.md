@@ -98,6 +98,12 @@ Notes:
 2. Download the latest installer or packaged build for Windows.
 3. Install and launch `VTOLVRWorkshopProfileSwitcher`.
 
+#### Windows Trust and SmartScreen Prompts
+
+Windows may show a "Do you trust this app?" permission prompt during installation. This is expected because the installer needs permission to install the app on your PC.
+
+Windows SmartScreen may also appear because this is a small unsigned project, or because a new release has not built up enough reputation with Microsoft yet. Only run the installer if you downloaded it from this repository's official [Releases](https://github.com/B1progame/Vtol-Vr-Mod-Profiler/releases) page. If SmartScreen appears, choose `More info`, then `Run anyway`.
+
 ### Option 2: Build from Source (.NET 8)
 
 Requirements:
