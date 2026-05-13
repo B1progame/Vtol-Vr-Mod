@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Globalization;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
@@ -25,16 +24,30 @@ public sealed partial class ModItemViewModel : ObservableObject
     public string DownloadCountText => Source.DownloadCount is > 0
         ? $"{Source.DownloadCount.Value.ToString("N0", CultureInfo.InvariantCulture)} downloads"
         : "downloads: n/a";
-    public Bitmap? ThumbnailImage { get; }
+    public Bitmap? ThumbnailImage
+    {
+        get
+        {
+            if (!_thumbnailLoadAttempted)
+            {
+                _thumbnailLoadAttempted = true;
+                _thumbnailImage = ViewModelImageLoader.TryLoadBitmap(Source.ThumbnailPath);
+            }
+
+            return _thumbnailImage;
+        }
+    }
+
     public IAsyncRelayCommand DeleteCommand { get; }
 
     private readonly Func<ModItemViewModel, Task>? _onDelete;
+    private Bitmap? _thumbnailImage;
+    private bool _thumbnailLoadAttempted;
 
     public ModItemViewModel(WorkshopMod source, Func<ModItemViewModel, Task>? onDelete = null)
     {
         Source = source;
         isEnabled = source.IsEnabled;
-        ThumbnailImage = TryLoadBitmap(source.ThumbnailPath);
         _onDelete = onDelete;
         DeleteCommand = new AsyncRelayCommand(DeleteAsync);
     }
@@ -47,31 +60,4 @@ public sealed partial class ModItemViewModel : ObservableObject
         }
     }
 
-    private static Bitmap? TryLoadBitmap(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && uri.IsFile)
-            {
-                path = uri.LocalPath;
-            }
-
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            {
-                return null;
-            }
-
-            using var stream = File.OpenRead(path);
-            return new Bitmap(stream);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }

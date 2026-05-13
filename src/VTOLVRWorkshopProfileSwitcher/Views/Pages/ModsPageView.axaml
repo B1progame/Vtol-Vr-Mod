@@ -5,6 +5,8 @@
              xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
              xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
              xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             xmlns:repeater="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ItemsRepeater"
+             xmlns:layout="clr-namespace:Avalonia.Layout;assembly=Avalonia.Controls.ItemsRepeater"
              x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ModsPageView"
              x:DataType="pages:ModsPageViewModel"
              x:CompileBindings="False"
@@ -40,13 +42,15 @@
 
     <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0">
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <ItemsControl ItemsSource="{Binding Shell.FilteredMods}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel ItemWidth="254" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
+        <repeater:ItemsRepeater ItemsSource="{Binding Shell.FilteredMods}"
+                                HorizontalCacheLength="320"
+                                VerticalCacheLength="560">
+          <repeater:ItemsRepeater.Layout>
+            <layout:WrapLayout Orientation="Horizontal"
+                               HorizontalSpacing="0"
+                               VerticalSpacing="0" />
+          </repeater:ItemsRepeater.Layout>
+          <repeater:ItemsRepeater.ItemTemplate>
             <DataTemplate x:DataType="vm:ModItemViewModel">
               <controls:ModCardView ThumbnailImage="{Binding ThumbnailImage}"
                                     Title="{Binding ModName}"
@@ -64,8 +68,8 @@
                                     DetailsCommand="{Binding $parent[UserControl].DataContext.Shell.SelectModCommand}"
                                     DetailsCommandParameter="{Binding .}" />
             </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+          </repeater:ItemsRepeater.ItemTemplate>
+        </repeater:ItemsRepeater>
       </ScrollViewer>
     </Border>
   </Grid>

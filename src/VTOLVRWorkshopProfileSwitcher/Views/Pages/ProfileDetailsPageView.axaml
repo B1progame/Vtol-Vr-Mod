@@ -5,26 +5,45 @@
              xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
              xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
              xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ProfileDetailsPageView"
              x:DataType="pages:ProfileDetailsPageViewModel"
              x:CompileBindings="False"
              mc:Ignorable="d">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
-    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
-      <Button Content="&lt; Back" Classes="secondary-button" Command="{Binding Shell.BackToProfilesCommand}" />
-      <TextBlock Grid.Column="1" Text="{Binding Profile.Name}" Classes="section-title" VerticalAlignment="Center" />
-      <Button Grid.Column="2" Content="Add Mod" Classes="primary-button" Command="{Binding Shell.OpenAddModFlowCommand}" />
-      <Button Grid.Column="3" Margin="8,0,0,0" Content="Reload + Check Deps" Classes="secondary-button" Command="{Binding Shell.ReloadProfileModsAndCheckDependenciesCommand}" />
-      <Button Grid.Column="4" Margin="8,0,0,0" Content="{Binding Shell.PlayModdedButtonText}" Classes="success-button" IsEnabled="{Binding Shell.CanLaunchGame}" PointerEntered="OnLaunchButtonPointerEntered" PointerExited="OnLaunchButtonPointerExited" Command="{Binding Shell.PlayModdedCommand}" />
-    </Grid>
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+        <Button Content="&lt; Back" Classes="secondary-button" Command="{Binding Shell.BackToProfilesCommand}" />
+        <Border Grid.Column="1" Classes="list-avatar" Margin="12,0,0,0" VerticalAlignment="Center">
+          <materialIcons:MaterialIcon Kind="{Binding Profile.IconKind}" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Grid.Column="2" Margin="12,0,0,0" Text="{Binding Profile.Name}" Classes="section-title" VerticalAlignment="Center" />
+        <Button Grid.Column="3" Content="+ Add Mod" Classes="primary-button" Command="{Binding Shell.OpenAddModFlowCommand}" />
+        <Button Grid.Column="4" Margin="8,0,0,0" Content="Reload + Check Deps" Classes="secondary-button" Command="{Binding Shell.ReloadProfileModsAndCheckDependenciesCommand}" />
+        <Button Grid.Column="5" Margin="8,0,0,0" Content="{Binding Shell.PlayModdedButtonText}" Classes="success-button" IsEnabled="{Binding Shell.CanLaunchGame}" PointerEntered="OnLaunchButtonPointerEntered" PointerExited="OnLaunchButtonPointerExited" Command="{Binding Shell.PlayModdedCommand}" />
+      </Grid>
+    </Border>
 
     <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
       <StackPanel Spacing="8">
-        <Grid ColumnDefinitions="2*,2*,Auto,Auto">
+        <Grid ColumnDefinitions="1.3*,1.4*,1.1*,Auto,Auto">
           <TextBox Text="{Binding Shell.ProfileNameInput}" Watermark="Profile name" />
           <TextBox Grid.Column="1" Text="{Binding Shell.ProfileNotesInput}" Watermark="Profile notes" />
-          <Button Grid.Column="2" Content="Rename / Save" Classes="primary-button" Command="{Binding Shell.RenameSelectedProfileCommand}" />
-          <Button Grid.Column="3" Content="Apply Profile" Classes="secondary-button" Command="{Binding Shell.ApplySelectedProfileCommand}" />
+          <ComboBox Grid.Column="2"
+                    Margin="8,0,0,0"
+                    ItemsSource="{Binding Shell.ProfileIconOptions}"
+                    SelectedItem="{Binding Shell.SelectedProfileIcon}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <materialIcons:MaterialIcon Kind="{Binding Kind}" Width="18" Height="18" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Grid.Column="3" Margin="8,0,0,0" Content="Rename / Save" Classes="primary-button" Command="{Binding Shell.RenameSelectedProfileCommand}" />
+          <Button Grid.Column="4" Margin="8,0,0,0" Content="Apply Profile" Classes="secondary-button" Command="{Binding Shell.ApplySelectedProfileCommand}" />
         </Grid>
       </StackPanel>
     </Border>

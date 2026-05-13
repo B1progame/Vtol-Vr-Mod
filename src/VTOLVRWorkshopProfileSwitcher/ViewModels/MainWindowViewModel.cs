@@ -41,6 +41,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     };
     private static readonly Version CurrentAppVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0, 0);
     private static readonly string CurrentVersionId = GetCurrentVersionId();
+    private static readonly string CurrentVersionDisplay = GetCurrentVersionDisplay(CurrentVersionId);
+    private static readonly bool IsCurrentBetaBuild = IsPrereleaseVersionId(CurrentVersionId);
     private static readonly HttpClient GitHubHttpClient = new();
     private readonly AppPaths _appPaths = new();
     private readonly SteamLibraryDetector _detector = new();
@@ -97,6 +99,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string profileNotesInput = string.Empty;
+
+    public ObservableCollection<ProfileIconOption> ProfileIconOptions { get; } = ProfileIconCatalog.Options;
+
+    [ObservableProperty]
+    private ProfileIconOption selectedProfileIcon = ProfileIconCatalog.GetOption(ProfileIconCatalog.DefaultIconName);
 
     [ObservableProperty]
     private string profileSearchQuery = string.Empty;
@@ -162,6 +169,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private bool autoInstallUpdates;
 
     [ObservableProperty]
+    private bool includeBetaUpdates;
+
+    [ObservableProperty]
     private string selectedVrRuntime = VrRuntimeSteamVr;
 
     [ObservableProperty]
@@ -169,6 +179,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string latestInstallerFileName = string.Empty;
+
+    [ObservableProperty]
+    private bool latestReleaseIsPrerelease;
 
     [ObservableProperty]
     private ObservableCollection<ReleaseInstallOption> downgradeReleaseOptions = new();
@@ -202,9 +215,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public bool CanApplyAgain => _lastRequestedEnabledSet is not null && _lastRequestedEnabledSet.Count > 0;
     public string AppAuthor => "B1progame";
     public string AppCreatedOn => "2026-02-15";
-    public string CurrentVersionText => $"v{CurrentAppVersion.Major}.{CurrentAppVersion.Minor}.{CurrentAppVersion.Build}";
+    public string CurrentVersionText => $"v{CurrentVersionDisplay}";
     public string CurrentVersionIdText => CurrentVersionId;
-    public bool CanInstallSelectedDowngrade => SelectedDowngradeRelease is not null && !IsLoadingDowngradeReleases;
+    public string UpdateChannelText => IsCurrentBetaBuild ? "Beta build" : IncludeBetaUpdates ? "Beta channel" : "Stable channel";
+    public string UpdateChannelDescription => IncludeBetaUpdates
+        ? "Can see prereleases and downgrade options. Install confirmations are always required."
+        : IsCurrentBetaBuild
+            ? "This installed build is beta. Stable-only update checks are still active until beta updates are enabled."
+            : "Only stable releases are considered. Downgrade tools stay hidden.";
+    public bool ShowDowngradeControls => IncludeBetaUpdates;
+    public bool ShowDowngradeHint => !IncludeBetaUpdates;
+    public string DowngradeStatusText => IncludeBetaUpdates ? "Beta tools enabled: Yes" : "Beta tools enabled: No";
+    public bool CanInstallSelectedDowngrade => IncludeBetaUpdates && SelectedDowngradeRelease is not null && !IsLoadingDowngradeReleases;
 
     public MainWindowViewModel()
     {
@@ -335,6 +357,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         ProfileNameInput = value.Name;
         ProfileNotesInput = value.Notes;
+        SelectedProfileIcon = ProfileIconCatalog.GetOption(value.Source.IconKind);
     }
 
     partial void OnProfileSearchQueryChanged(string value)
@@ -354,6 +377,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     partial void OnAutoInstallUpdatesChanged(bool value)
     {
+        SaveSettingsIfNeeded();
+    }
+
+    partial void OnIncludeBetaUpdatesChanged(bool value)
+    {
+        if (!value)
+        {
+            DowngradeReleaseOptions = new ObservableCollection<ReleaseInstallOption>();
+            SelectedDowngradeRelease = null;
+        }
+
+        OnPropertyChanged(nameof(ShowDowngradeControls));
+        OnPropertyChanged(nameof(ShowDowngradeHint));
+        OnPropertyChanged(nameof(DowngradeStatusText));
+        OnPropertyChanged(nameof(CanInstallSelectedDowngrade));
+        OnPropertyChanged(nameof(UpdateChannelText));
+        OnPropertyChanged(nameof(UpdateChannelDescription));
         SaveSettingsIfNeeded();
     }
 
@@ -424,7 +464,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IsCheckingForUpdates = true;
         try
         {
-            var latest = await TryGetLatestReleaseAsync();
+            var latest = await TryGetLatestReleaseAsync(IncludeBetaUpdates);
             if (latest is null)
             {
                 HasUpdateAvailable = false;
@@ -433,6 +473,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 LatestReleaseUrl = ReleasesPageUrl;
                 LatestInstallerUrl = string.Empty;
                 LatestInstallerFileName = string.Empty;
+                LatestReleaseIsPrerelease = false;
                 UpdateStatusText = "No GitHub releases published yet.";
                 return;
             }
@@ -441,17 +482,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             LatestReleaseVersion = string.IsNullOrWhiteSpace(latestTag) ? "Unknown" : latestTag;
             LatestReleaseUrl = string.IsNullOrWhiteSpace(latest.Value.HtmlUrl) ? ReleasesPageUrl : latest.Value.HtmlUrl;
             LatestInstallerUrl = string.IsNullOrWhiteSpace(latest.Value.InstallerUrl)
-                ? $"https://github.com/{GitHubOwner}/{GitHubRepoName}/releases/latest/download/{DefaultInstallerAssetName}"
+                ? (latest.Value.IsPrerelease
+                    ? string.Empty
+                    : $"https://github.com/{GitHubOwner}/{GitHubRepoName}/releases/latest/download/{DefaultInstallerAssetName}")
                 : latest.Value.InstallerUrl;
             LatestInstallerFileName = string.IsNullOrWhiteSpace(latest.Value.InstallerName)
                 ? DefaultInstallerAssetName
                 : latest.Value.InstallerName;
+            LatestReleaseIsPrerelease = latest.Value.IsPrerelease;
             HasUpdateAvailable = IsUpdateAvailable(latestTag, CurrentAppVersion, CurrentVersionId);
             CanAutoInstallUpdate = HasUpdateAvailable;
 
             if (!HasUpdateAvailable)
             {
-                UpdateStatusText = $"You are up to date ({CurrentVersionText}, id {CurrentVersionIdText})";
+                UpdateStatusText = $"The launcher is up to date ({CurrentVersionText}, id {CurrentVersionIdText})";
             }
             else if (!CanAutoInstallUpdate)
             {
@@ -459,14 +503,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
             else
             {
-                UpdateStatusText = $"New version available: {LatestReleaseVersion} (current {CurrentVersionText})";
+                UpdateStatusText = LatestReleaseIsPrerelease
+                    ? $"New beta available: {LatestReleaseVersion} (current {CurrentVersionText})"
+                    : $"New version available: {LatestReleaseVersion} (current {CurrentVersionText})";
             }
 
             if (AutoInstallUpdates && CanAutoInstallUpdate)
             {
                 if (!_startupInitializationComplete)
                 {
-                    UpdateStatusText = $"New version available: {LatestReleaseVersion} (auto install will run after startup)";
+                    UpdateStatusText = LatestReleaseIsPrerelease
+                        ? $"New beta available: {LatestReleaseVersion} (confirmation required after startup)"
+                        : $"New version available: {LatestReleaseVersion} (auto install will run after startup)";
+                    return;
+                }
+
+                if (IncludeBetaUpdates)
+                {
+                    UpdateStatusText = LatestReleaseIsPrerelease
+                        ? $"Beta update available: {LatestReleaseVersion}. Review and confirm before installing."
+                        : $"Stable update available: {LatestReleaseVersion}. Review and confirm before installing.";
                     return;
                 }
 
@@ -508,6 +564,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IsDownloadingUpdate = true;
         try
         {
+            if (!await ConfirmUpdateInstallAsync())
+            {
+                UpdateStatusText = "Update install canceled.";
+                return;
+            }
+
             var fileName = string.IsNullOrWhiteSpace(LatestInstallerFileName)
                 ? DefaultInstallerAssetName
                 : LatestInstallerFileName;
@@ -815,7 +877,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             EnabledMods = enabled,
             IncludedMods = enabled.Distinct(StringComparer.Ordinal).ToList(),
             CreatedAt = DateTime.UtcNow,
-            Notes = ProfileNotesInput.Trim()
+            Notes = ProfileNotesInput.Trim(),
+            IconKind = SelectedProfileIcon.IconName
         };
 
         await _profileService.SaveProfileAsync(profile);
@@ -843,6 +906,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         ProfileNameInput = result.Name;
         ProfileNotesInput = result.Notes;
+        SelectedProfileIcon = ProfileIconCatalog.GetOption(result.IconKind);
 
         foreach (var mod in _allMods)
         {
@@ -1492,7 +1556,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         try
         {
             UpdateStatusText = "Checking latest release for manual update...";
-            var latest = await TryGetLatestReleaseAsync();
+            var latest = await TryGetLatestReleaseAsync(IncludeBetaUpdates);
             if (latest is null)
             {
                 UpdateStatusText = "No GitHub releases published yet.";
@@ -1503,6 +1567,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             LatestReleaseUrl = string.IsNullOrWhiteSpace(latest.Value.HtmlUrl) ? ReleasesPageUrl : latest.Value.HtmlUrl;
             LatestInstallerUrl = latest.Value.InstallerUrl;
             LatestInstallerFileName = latest.Value.InstallerName;
+            LatestReleaseIsPrerelease = latest.Value.IsPrerelease;
 
             if (string.IsNullOrWhiteSpace(LatestInstallerUrl))
             {
@@ -1531,6 +1596,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task LoadDowngradeReleasesAsync()
     {
+        if (!IncludeBetaUpdates)
+        {
+            UpdateStatusText = "Enable beta updates to access downgrade versions.";
+            return;
+        }
+
         if (IsLoadingDowngradeReleases || IsCheckingForUpdates || IsDownloadingUpdate)
         {
             return;
@@ -1540,7 +1611,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         try
         {
             UpdateStatusText = "Loading downgrade versions...";
-            var releases = await TryGetReleasesAsync(DowngradeReleasePageSize);
+            var releases = await TryGetReleasesAsync(DowngradeReleasePageSize, includePrerelease: IncludeBetaUpdates);
             var downgradeOptions = releases
                 .Where(release => !string.IsNullOrWhiteSpace(release.InstallerUrl))
                 .Select(release => new
@@ -1552,10 +1623,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 .OrderByDescending(item => item.Version)
                 .Select(item => new ReleaseInstallOption(
                     item.Release.TagName,
-                    $"{item.Release.TagName} ({item.Release.InstallerName})",
+                    $"{item.Release.TagName}{(item.Release.IsPrerelease ? " [beta]" : string.Empty)} ({item.Release.InstallerName})",
                     item.Release.InstallerUrl,
                     item.Release.InstallerName,
-                    item.Release.HtmlUrl))
+                    item.Release.HtmlUrl,
+                    item.Release.IsPrerelease))
                 .ToList();
 
             DowngradeReleaseOptions = new ObservableCollection<ReleaseInstallOption>(downgradeOptions);
@@ -1581,6 +1653,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task InstallSelectedDowngradeAsync()
     {
+        if (!IncludeBetaUpdates)
+        {
+            UpdateStatusText = "Enable beta updates to install downgrade versions.";
+            return;
+        }
+
         if (IsDownloadingUpdate || SelectedDowngradeRelease is null)
         {
             return;
@@ -1593,6 +1671,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         LatestReleaseUrl = SelectedDowngradeRelease.HtmlUrl;
         LatestInstallerUrl = SelectedDowngradeRelease.InstallerUrl;
         LatestInstallerFileName = SelectedDowngradeRelease.InstallerName;
+        LatestReleaseIsPrerelease = SelectedDowngradeRelease.IsPrerelease;
         await DownloadAndInstallUpdateAsync();
     }
 
@@ -1784,7 +1863,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Notes = source.Notes,
                 CreatedAt = source.CreatedAt,
                 EnabledMods = enabled,
-                IncludedMods = enabled.ToList()
+                IncludedMods = enabled.ToList(),
+                IconKind = source.IconKind
             };
 
             await _profileService.SaveProfileAsync(updated, cancellationToken);
@@ -2203,6 +2283,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
             OpenSteamPageAfterDelete = settings.OpenSteamPageAfterDelete;
             AutoInstallUpdates = settings.AutoInstallUpdates;
+            IncludeBetaUpdates = settings.IncludeBetaUpdates;
             if (VrRuntimeOptions.Contains(settings.VrRuntime, StringComparer.OrdinalIgnoreCase))
             {
                 SelectedVrRuntime = settings.VrRuntime;
@@ -2235,6 +2316,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             SelectedDesign = SelectedDesign,
             OpenSteamPageAfterDelete = OpenSteamPageAfterDelete,
             AutoInstallUpdates = AutoInstallUpdates,
+            IncludeBetaUpdates = IncludeBetaUpdates,
             VrRuntime = SelectedVrRuntime
         };
 
@@ -2359,6 +2441,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
+    private static string GetCurrentVersionDisplay(string versionId)
+    {
+        if (string.IsNullOrWhiteSpace(versionId))
+        {
+            return $"{CurrentAppVersion.Major}.{CurrentAppVersion.Minor}.{CurrentAppVersion.Build}";
+        }
+
+        var plusIndex = versionId.IndexOf('+', StringComparison.Ordinal);
+        return plusIndex > 0 ? versionId[..plusIndex] : versionId;
+    }
+
+    private static bool IsPrereleaseVersionId(string versionId)
+    {
+        var display = GetCurrentVersionDisplay(versionId);
+        return display.Contains('-', StringComparison.Ordinal);
+    }
+
     private static bool IsNumericWorkshopId(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -2369,14 +2468,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return value.All(char.IsDigit);
     }
 
-    private async Task<(string TagName, string HtmlUrl, string InstallerUrl, string InstallerName)?> TryGetLatestReleaseAsync()
+    private async Task<(string TagName, string HtmlUrl, string InstallerUrl, string InstallerName, bool IsPrerelease)?> TryGetLatestReleaseAsync(bool includePrerelease)
     {
+        if (includePrerelease)
+        {
+            var releases = await TryGetReleasesAsync(20, includePrerelease: true);
+            if (releases.Count == 0)
+            {
+                return null;
+            }
+
+            var first = releases[0];
+            return (first.TagName, first.HtmlUrl, first.InstallerUrl, first.InstallerName, first.IsPrerelease);
+        }
+
         var latestUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepoName}/releases/latest";
         using var latestResponse = await GitHubHttpClient.GetAsync(latestUrl);
 
         if (latestResponse.IsSuccessStatusCode)
         {
-            return await ReadReleaseAsync(latestResponse);
+            var latestStable = await ReadReleaseAsync(latestResponse);
+            return (latestStable.TagName, latestStable.HtmlUrl, latestStable.InstallerUrl, latestStable.InstallerName, false);
         }
 
         if (latestResponse.StatusCode != HttpStatusCode.NotFound)
@@ -2393,11 +2505,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return null;
         }
 
-        var first = fallbackReleases[0];
-        return (first.TagName, first.HtmlUrl, first.InstallerUrl, first.InstallerName);
+        var fallbackFirst = fallbackReleases[0];
+        return (fallbackFirst.TagName, fallbackFirst.HtmlUrl, fallbackFirst.InstallerUrl, fallbackFirst.InstallerName, fallbackFirst.IsPrerelease);
     }
 
-    private async Task<IReadOnlyList<ReleaseInfo>> TryGetReleasesAsync(int perPage)
+    private async Task<IReadOnlyList<ReleaseInfo>> TryGetReleasesAsync(int perPage, bool includePrerelease = false)
     {
         var listUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepoName}/releases?per_page={perPage}";
         using var listResponse = await GitHubHttpClient.GetAsync(listUrl);
@@ -2409,7 +2521,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 listResponse.StatusCode);
         }
 
-        return await ReadReleaseListAsync(listResponse);
+        return await ReadReleaseListAsync(listResponse, includePrerelease);
     }
 
     private static async Task<(string TagName, string HtmlUrl, string InstallerUrl, string InstallerName)> ReadReleaseAsync(HttpResponseMessage response)
@@ -2423,7 +2535,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return (tag ?? string.Empty, html ?? ReleasesPageUrl, installerUrl, installerName);
     }
 
-    private static async Task<IReadOnlyList<ReleaseInfo>> ReadReleaseListAsync(HttpResponseMessage response)
+    private static async Task<IReadOnlyList<ReleaseInfo>> ReadReleaseListAsync(HttpResponseMessage response, bool includePrerelease)
     {
         await using var stream = await response.Content.ReadAsStreamAsync();
         using var doc = await JsonDocument.ParseAsync(stream);
@@ -2442,6 +2554,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 continue;
             }
 
+            var isPrerelease = release.TryGetProperty("prerelease", out var prereleaseEl) &&
+                               prereleaseEl.ValueKind == JsonValueKind.True;
+            if (isPrerelease && !includePrerelease)
+            {
+                continue;
+            }
+
             var tag = release.TryGetProperty("tag_name", out var tagEl) ? tagEl.GetString() : null;
             if (!HasSupportedUpdateTagFormat(tag))
             {
@@ -2454,7 +2573,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 tag ?? string.Empty,
                 html ?? ReleasesPageUrl,
                 installerUrl,
-                installerName));
+                installerName,
+                isPrerelease));
         }
 
         return releases;
@@ -2499,12 +2619,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         string DisplayName,
         string InstallerUrl,
         string InstallerName,
-        string HtmlUrl);
+        string HtmlUrl,
+        bool IsPrerelease = false);
 
     private readonly record struct ReleaseInfo(
         string TagName,
         string HtmlUrl,
         string InstallerUrl,
-        string InstallerName);
+        string InstallerName,
+        bool IsPrerelease);
+
+    private async Task<bool> ConfirmUpdateInstallAsync()
+    {
+        if (!IncludeBetaUpdates)
+        {
+            return true;
+        }
+
+        var window = GetMainWindow();
+        if (window is null)
+        {
+            return true;
+        }
+
+        var releaseKind = LatestReleaseIsPrerelease ? "beta" : "stable";
+        var dialog = new ConfirmActionWindow(
+            "Confirm Update Install",
+            $"Beta update mode is enabled. Install the {releaseKind} release '{LatestReleaseVersion}' now?",
+            "Install",
+            "Not now");
+
+        var result = await dialog.ShowDialog<bool>(window);
+        return result;
+    }
 }
 

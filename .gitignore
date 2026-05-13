@@ -23,3 +23,7 @@
 *.sh
 *.ps1
 *.exe
+!scripts/build-beta-installer.ps1
+
+# Local experiments / throwaway probes
+/local-probes/

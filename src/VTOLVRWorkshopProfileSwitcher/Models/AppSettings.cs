@@ -5,5 +5,6 @@ public sealed class AppSettings
     public string SelectedDesign { get; set; } = "TACTICAL RED";
     public bool OpenSteamPageAfterDelete { get; set; } = true;
     public bool AutoInstallUpdates { get; set; }
+    public bool IncludeBetaUpdates { get; set; }
     public string VrRuntime { get; set; } = "SteamVR";
 }

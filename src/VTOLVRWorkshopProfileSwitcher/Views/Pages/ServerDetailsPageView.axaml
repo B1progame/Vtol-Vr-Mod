@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ServerDetailsPageView"
+             x:DataType="pages:ServerDetailsPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+        <Button Content="&lt; Back" Classes="secondary-button" Command="{Binding Shell.BackToServersCommand}" />
+        <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="{Binding Server.ServerName}" Classes="section-title" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Content="Copy Join Code" Classes="secondary-button" Command="{Binding Shell.CopySelectedServerJoinCodeCommand}" />
+        <Button Grid.Column="3" Margin="8,0,0,0" Content="Open Missing" Classes="warning-button" Command="{Binding Shell.OpenAllMissingServerItemsCommand}" />
+        <Button Grid.Column="4" Margin="8,0,0,0" Content="Create Modpack" Classes="primary-button" Command="{Binding Shell.CreateModpackForServerCommand}" CommandParameter="{Binding Server}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid ColumnDefinitions="*,*">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{Binding Server.CreatorLine}" Classes="text-muted" />
+          <TextBlock Text="{Binding Server.ScenarioName}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Server.State, StringFormat=State: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding Server.ServerTypeSummary, StringFormat=Type: {0}}" Classes="text-muted" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6">
+          <TextBlock Text="{Binding Server.PlayerSummary, StringFormat=Players: {0}}" />
+          <TextBlock Text="{Binding Server.PasswordSummary, StringFormat=Access: {0}}" />
+          <TextBlock Text="{Binding Server.GameVersion, StringFormat=Version: {0}}" />
+          <TextBlock Text="{Binding Server.PingText, StringFormat=Ping: {0}}" />
+          <TextBlock Text="{Binding Server.JoinCode, StringFormat=Join Code: {0}}" />
+          <TextBlock Text="{Binding Server.DlcSummary, StringFormat=DLC: {0}}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0" IsVisible="{Binding Server.HasScenarioRequirement}">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Scenario" Classes="section-title" />
+          <TextBlock Text="{Binding ScenarioRequirement.Title}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding ScenarioRequirement.Subtitle}" Classes="text-muted" />
+          <TextBlock Text="{Binding ScenarioRequirement.StatusText}" Classes="text-muted" />
+        </StackPanel>
+        <Button Grid.Column="1"
+                VerticalAlignment="Center"
+                Content="Open Workshop"
+                Classes="secondary-button"
+                Command="{Binding Shell.OpenServerScenarioWorkshopCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="3" Classes="card-panel" Padding="12" Margin="0,12,0,0" IsVisible="{Binding Shell.HasSelectedServerMissingItems}">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Missing Items" Classes="section-title" />
+        <TextBlock Text="{Binding Shell.SelectedServerMissingSummary}" Classes="text-muted" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="4" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Text="Required Mods" Classes="section-title" />
+        <Grid Grid.Row="1">
+          <TextBlock Text="This server did not expose extra required mods."
+                     Classes="text-muted"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     IsVisible="{Binding Shell.ShowSelectedServerRequirementsEmpty}" />
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsVisible="{Binding Shell.HasSelectedServerRequirements}">
+            <ItemsControl ItemsSource="{Binding Requirements}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemWidth="254" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ServerRequirementViewModel">
+                  <controls:ModCardView ThumbnailImage="{Binding ThumbnailImage}"
+                                        Title="{Binding Title}"
+                                        Subtitle="{Binding Subtitle}"
+                                        DetailsText="Open"
+                                        ShowToggle="False"
+                                        ShowStatusText="True"
+                                        StatusText="{Binding StatusText}"
+                                        DetailsCommand="{Binding $parent[UserControl].DataContext.Shell.OpenServerRequirementWorkshopCommand}"
+                                        DetailsCommandParameter="{Binding .}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -31,8 +31,14 @@
     <DataTemplate DataType="pagesVm:ProfilesPageViewModel">
       <pages:ProfilesPageView />
     </DataTemplate>
+    <DataTemplate DataType="pagesVm:ServersPageViewModel">
+      <pages:ServersPageView />
+    </DataTemplate>
     <DataTemplate DataType="pagesVm:ProfileDetailsPageViewModel">
       <pages:ProfileDetailsPageView />
+    </DataTemplate>
+    <DataTemplate DataType="pagesVm:ServerDetailsPageViewModel">
+      <pages:ServerDetailsPageView />
     </DataTemplate>
     <DataTemplate DataType="pagesVm:ModsPageViewModel">
       <pages:ModsPageView />
@@ -62,29 +68,63 @@
 
     <Border Grid.Column="0" Classes="sidebar-panel" Padding="12" Margin="0,0,12,0">
       <Grid RowDefinitions="Auto,*,Auto">
-        <TextBlock Text="VTOL VR Switcher"
-                   FontSize="23"
-                   FontWeight="Bold"
-                   Height="84"
-                   Margin="4,8,4,12"
-                   VerticalAlignment="Center"
-                   TextWrapping="Wrap"
-                   LineHeight="28"
-                   MaxWidth="236" />
+        <StackPanel Height="84" Margin="4,8,4,12" VerticalAlignment="Center" Spacing="4">
+          <TextBlock Text="VTOL VR"
+                     FontSize="26"
+                     FontWeight="Bold" />
+          <TextBlock Text="Workshop Switcher"
+                     Classes="text-muted"
+                     FontSize="14"
+                     FontWeight="SemiBold" />
+        </StackPanel>
 
         <StackPanel Grid.Row="1" Spacing="0">
-          <Button Content="Dashboard" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsDashboardSelected}" Command="{Binding NavigateDashboardCommand}" />
-          <Button Content="Profiles" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsProfilesSelected}" Command="{Binding NavigateProfilesCommand}" />
-          <Button Content="Mods" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsModsSelected}" Command="{Binding NavigateModsCommand}" />
-          <Button Content="Backups" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsBackupsSelected}" Command="{Binding NavigateBackupsCommand}" />
-          <Button Content="Logs" Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsLogsSelected}" Command="{Binding NavigateLogsCommand}" />
+          <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsDashboardSelected}" Command="{Binding NavigateDashboardCommand}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Classes="nav-icon"><TextBlock Text="&#xE80F;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Dashboard" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+          <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsProfilesSelected}" Command="{Binding NavigateProfilesCommand}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Classes="nav-icon"><TextBlock Text="&#xE716;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Profiles" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+          <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsServersSelected}" Command="{Binding NavigateServersCommand}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Border Classes="nav-icon"><TextBlock Text="&#xE703;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Servers" VerticalAlignment="Center" />
+              <Border Grid.Column="2" Classes="beta-chip" VerticalAlignment="Center"><TextBlock Text="BETA" /></Border>
+            </Grid>
+          </Button>
+          <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsModsSelected}" Command="{Binding NavigateModsCommand}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Classes="nav-icon"><TextBlock Text="&#xEA86;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Mods" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+          <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsBackupsSelected}" Command="{Binding NavigateBackupsCommand}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Classes="nav-icon"><TextBlock Text="&#xE8B7;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Backups" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+          <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsLogsSelected}" Command="{Binding NavigateLogsCommand}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Classes="nav-icon"><TextBlock Text="&#xE8A5;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Logs" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
           <Button Classes="sidebar-item"
                   Classes.sidebar-item-active="{Binding IsSettingsSelected}"
                   Classes.update-alert="{Binding HasUpdateAvailable}"
                   Command="{Binding NavigateSettingsCommand}">
-            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-              <TextBlock Text="Settings" VerticalAlignment="Center" />
-              <Border Grid.Column="1"
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+              <Border Classes="nav-icon"><TextBlock Text="&#xE713;" /></Border>
+              <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Settings" VerticalAlignment="Center" />
+              <Border Grid.Column="2"
+                      Margin="8,0,0,0"
                       Classes="settings-warning-badge"
                       IsVisible="{Binding HasUpdateAvailable}"
                       VerticalAlignment="Center">

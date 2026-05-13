@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media.Imaging;
 
 namespace VTOLVRWorkshopProfileSwitcher.Views.Controls;
@@ -33,6 +34,12 @@ public partial class ModCardView : UserControl
 
     public static readonly StyledProperty<object?> DetailsCommandParameterProperty =
         AvaloniaProperty.Register<ModCardView, object?>(nameof(DetailsCommandParameter));
+
+    public static readonly StyledProperty<string> DetailsTextProperty =
+        AvaloniaProperty.Register<ModCardView, string>(nameof(DetailsText), "Details");
+
+    public static readonly StyledProperty<bool> OpenDetailsOnCardClickProperty =
+        AvaloniaProperty.Register<ModCardView, bool>(nameof(OpenDetailsOnCardClick), false);
 
     public static readonly StyledProperty<string> SecondaryActionTextProperty =
         AvaloniaProperty.Register<ModCardView, string>(nameof(SecondaryActionText), string.Empty);
@@ -117,6 +124,22 @@ public partial class ModCardView : UserControl
         set => SetValue(DetailsCommandParameterProperty, value);
     }
 
+    public string DetailsText
+    {
+        get => GetValue(DetailsTextProperty);
+        set => SetValue(DetailsTextProperty, value);
+    }
+
+    public bool OpenDetailsOnCardClick
+    {
+        get => GetValue(OpenDetailsOnCardClickProperty);
+        set => SetValue(OpenDetailsOnCardClickProperty, value);
+    }
+
+    public Cursor CardCursor => OpenDetailsOnCardClick
+        ? new Cursor(StandardCursorType.Hand)
+        : Cursor.Default;
+
     public string SecondaryActionText
     {
         get => GetValue(SecondaryActionTextProperty);
@@ -163,5 +186,26 @@ public partial class ModCardView : UserControl
     {
         get => GetValue(TertiaryActionCommandParameterProperty);
         set => SetValue(TertiaryActionCommandParameterProperty, value);
+    }
+
+    private void OnCardPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!OpenDetailsOnCardClick || e.InitialPressMouseButton != MouseButton.Left)
+        {
+            return;
+        }
+
+        if (e.Source is Button or ToggleSwitch)
+        {
+            return;
+        }
+
+        var command = DetailsCommand;
+        var parameter = DetailsCommandParameter;
+        if (command?.CanExecute(parameter) == true)
+        {
+            command.Execute(parameter);
+            e.Handled = true;
+        }
     }
 }

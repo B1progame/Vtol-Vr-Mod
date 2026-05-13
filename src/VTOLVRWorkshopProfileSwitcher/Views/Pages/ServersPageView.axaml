@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
+             xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             xmlns:controls="clr-namespace:VTOLVRWorkshopProfileSwitcher.Views.Controls"
+             x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ServersPageView"
+             x:DataType="pages:ServersPageViewModel"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Border Classes="toolbar-panel" Padding="12">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Text="Servers (Beta)" Classes="section-title" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Margin="12,0,0,0" Text="{Binding Shell.ServerSearchQuery}" Watermark="Search servers, creators, or scenarios..." />
+        <Button Grid.Column="2" Margin="8,0,0,0" Content="Refresh" Classes="primary-button" Command="{Binding Shell.RefreshServersCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <CheckBox Content="Include Passworded" IsChecked="{Binding Shell.IncludePasswordServers}" VerticalAlignment="Center" />
+        <CheckBox Grid.Column="1" Margin="14,0,0,0" Content="Show Modded Only" IsChecked="{Binding Shell.ShowModdedServersOnly}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Margin="14,0,0,0" Text="{Binding Shell.ServersStatusMessage}" Classes="text-muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <TextBlock Grid.Column="3" Text="{Binding Shell.ServerCountSummary}" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0">
+      <Grid>
+        <TextBlock Text="{Binding Shell.ServersStatusMessage}"
+                   Classes="text-muted"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontSize="16"
+                   TextWrapping="Wrap"
+                   IsVisible="{Binding Shell.ShowServerEmptyState}" />
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsVisible="{Binding Shell.HasServerResults}">
+          <ItemsControl ItemsSource="{Binding Shell.FilteredServers}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemWidth="254" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ServerItemViewModel">
+                <controls:ModCardView ThumbnailImage="{Binding ThumbnailImage}"
+                                      Title="{Binding ServerName}"
+                                      Subtitle="{Binding CardSubtitle}"
+                                      DetailsText="Open"
+                                      ShowToggle="False"
+                                      ShowStatusText="True"
+                                      StatusText="{Binding StatusText}"
+                                      OpenDetailsOnCardClick="True"
+                                      ShowSecondaryAction="True"
+                                      SecondaryActionText="Pack"
+                                      SecondaryActionCommand="{Binding $parent[UserControl].DataContext.Shell.CreateModpackForServerCommand}"
+                                      SecondaryActionCommandParameter="{Binding .}"
+                                      DetailsCommand="{Binding $parent[UserControl].DataContext.Shell.OpenServerDetailsCommand}"
+                                      DetailsCommandParameter="{Binding .}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

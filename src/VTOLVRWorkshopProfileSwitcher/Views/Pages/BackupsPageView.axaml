@@ -13,7 +13,7 @@
       <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
         <TextBlock Text="Backups / Snapshots" Classes="section-title" VerticalAlignment="Center" />
         <Button Grid.Column="1" Content="Refresh" Classes="secondary-button" Command="{Binding Shell.ReloadBackupsCommand}" />
-        <Button Grid.Column="2" Margin="8,0,0,0" Content="Create Backup" Classes="primary-button" Command="{Binding Shell.CreateBackupCommand}" />
+        <Button Grid.Column="2" Margin="8,0,0,0" Content="+ Create Backup" Classes="primary-button" Command="{Binding Shell.CreateBackupCommand}" />
         <Button Grid.Column="3"
                 Margin="8,0,0,0"
                 Content="Delete Selected"
@@ -27,16 +27,25 @@
     <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
       <Grid RowDefinitions="*,Auto">
         <ListBox x:Name="BackupsList"
+                 Classes="modern-list"
                  ItemsSource="{Binding Shell.Backups}"
                  SelectedItem="{Binding Shell.SelectedBackup}"
                  SelectionMode="Multiple">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:BackupItemViewModel">
-              <Border Classes="card-panel" Padding="10" Margin="0,0,0,8">
-                <StackPanel>
-                  <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" />
-                  <TextBlock Text="{Binding DisplayTimestamp}" Classes="text-muted" />
-                </StackPanel>
+              <Border Classes="list-row">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <Border Classes="list-avatar">
+                    <TextBlock Text="BK" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="15" />
+                    <TextBlock Text="{Binding DisplayTimestamp}" Classes="text-muted" />
+                  </StackPanel>
+                  <Border Grid.Column="2" Classes="pill" VerticalAlignment="Center">
+                    <TextBlock Text="Snapshot" />
+                  </Border>
+                </Grid>
               </Border>
             </DataTemplate>
           </ListBox.ItemTemplate>

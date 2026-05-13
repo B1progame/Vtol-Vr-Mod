@@ -12,7 +12,11 @@
     <conv:BoolToOnOffConverter x:Key="OnOffConverter" />
   </UserControl.Resources>
 
-  <Border Classes="mod-card" Width="246" Height="262">
+  <Border Classes="mod-card"
+          Width="246"
+          Height="262"
+          Cursor="{Binding CardCursor, ElementName=Root}"
+          PointerReleased="OnCardPointerReleased">
     <Grid RowDefinitions="150,Auto,*">
       <Border Grid.Row="0" CornerRadius="8" Background="#203c6b" ClipToBounds="True">
         <Image Source="{Binding ThumbnailImage, ElementName=Root}" Stretch="UniformToFill" />
@@ -28,7 +32,7 @@
       </StackPanel>
 
       <Grid Grid.Row="2" Margin="0,10,0,0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" VerticalAlignment="Bottom">
-        <Button Content="Details"
+        <Button Content="{Binding DetailsText, ElementName=Root}"
                 Classes="secondary-button"
                 Command="{Binding DetailsCommand, ElementName=Root}"
                 CommandParameter="{Binding DetailsCommandParameter, ElementName=Root}" />

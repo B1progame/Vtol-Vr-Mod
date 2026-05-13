@@ -6,7 +6,7 @@ labels: enhancement
 assignees: ""
 ---
 
-## What would you like to improve?
+## What should improve?
 
 
 ## Why would this help?
@@ -16,5 +16,4 @@ assignees: ""
 
 
 ## Extra context or mockups
-
 

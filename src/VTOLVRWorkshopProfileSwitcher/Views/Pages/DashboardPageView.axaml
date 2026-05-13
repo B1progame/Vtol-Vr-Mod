@@ -58,10 +58,21 @@
           <TextBlock Text="Recent Logs" Classes="section-title" />
           <Button Grid.Column="1" Content="View All Logs" Classes="secondary-button" Command="{Binding Shell.NavigateLogsCommand}" />
         </Grid>
-        <ListBox Grid.Row="1" ItemsSource="{Binding Shell.RecentLogs}">
+        <ListBox Grid.Row="1" Classes="modern-list" ItemsSource="{Binding Shell.RecentLogs}">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:LogEntryViewModel">
-              <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+              <Border Classes="list-row">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Border Classes="list-avatar">
+                    <TextBlock Text="LG" />
+                  </Border>
+                  <TextBlock Grid.Column="1"
+                             Margin="12,0,0,0"
+                             Text="{Binding Text}"
+                             TextWrapping="Wrap"
+                             VerticalAlignment="Center" />
+                </Grid>
+              </Border>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>

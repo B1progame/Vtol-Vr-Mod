@@ -6,6 +6,38 @@
   #define PublisherName "VTOLVR Workshop Tools"
 #endif
 
+#ifndef AppChannel
+  #define AppChannel "Stable"
+#endif
+
+#ifndef MyAppName
+  #define MyAppName "VTOL VR Switcher"
+#endif
+
+#ifndef MyAppId
+  #define MyAppId "{{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}"
+#endif
+
+#ifndef MyOutputBaseFilename
+  #define MyOutputBaseFilename "VTOLVRSwitcher-Setup"
+#endif
+
+#ifndef MyDefaultDirName
+  #define MyDefaultDirName "{autopf}\VTOL VR Switcher"
+#endif
+
+#ifndef MyDefaultGroupName
+  #define MyDefaultGroupName "VTOL VR Switcher"
+#endif
+
+#ifndef DefaultAutoInstallUpdates
+  #define DefaultAutoInstallUpdates "false"
+#endif
+
+#ifndef DefaultIncludeBetaUpdates
+  #define DefaultIncludeBetaUpdates "false"
+#endif
+
 #ifndef SourceDir
   #define SourceDir "publish\\win-x64"
 #endif
@@ -19,18 +51,18 @@
 #endif
 
 [Setup]
-AppId={{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}
-AppName=VTOL VR Switcher
+AppId={#MyAppId}
+AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#PublisherName}
-AppPublisherURL=https://github.com/B1progame/Vtol-Vr-Mod-Profiler
-AppSupportURL=https://github.com/B1progame/Vtol-Vr-Mod-Profiler/issues
-AppUpdatesURL=https://github.com/B1progame/Vtol-Vr-Mod-Profiler/releases
-DefaultDirName={autopf}\VTOL VR Switcher
-DefaultGroupName=VTOL VR Switcher
+AppPublisherURL=https://github.com/B1progame/Vtol-Vr-Mod
+AppSupportURL=https://github.com/B1progame/Vtol-Vr-Mod/issues
+AppUpdatesURL=https://github.com/B1progame/Vtol-Vr-Mod/releases
+DefaultDirName={#MyDefaultDirName}
+DefaultGroupName={#MyDefaultGroupName}
 DisableProgramGroupPage=yes
 OutputDir=output
-OutputBaseFilename=VTOLVRSwitcher-Setup
+OutputBaseFilename={#MyOutputBaseFilename}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -40,8 +72,8 @@ UninstallDisplayIcon={app}\VTOLVRWorkshopProfileSwitcher.exe
 SetupIconFile={#IconFile}
 LicenseFile={#LicenseFile}
 VersionInfoCompany={#PublisherName}
-VersionInfoDescription=VTOL VR Switcher Installer
-VersionInfoProductName=VTOL VR Switcher
+VersionInfoDescription={#MyAppName} Installer
+VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
@@ -54,11 +86,11 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\VTOL VR Switcher"; Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"
-Name: "{autodesktop}\VTOL VR Switcher"; Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"; Description: "Launch VTOL VR Switcher"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 var
@@ -119,7 +151,8 @@ begin
     '  "selectedDesign": "TACTICAL RED",'#13#10 +
     '  "openSteamPageAfterDelete": true,'#13#10 +
     '  "autoInstallUpdates": ' + AutoInstallUpdatesValue + ','#13#10 +
-    '  "lastAutoInstallAttemptedTag": ""'#13#10 +
+    '  "includeBetaUpdates": {#DefaultIncludeBetaUpdates},'#13#10 +
+    '  "vrRuntime": "SteamVR"'#13#10 +
     '}'#13#10;
 
   SaveStringToFile(SettingsPath, SettingsJson, False);

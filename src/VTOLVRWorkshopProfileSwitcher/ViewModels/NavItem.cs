@@ -4,6 +4,7 @@ public enum NavItem
 {
     Dashboard,
     Profiles,
+    Servers,
     Mods,
     Backups,
     Logs,

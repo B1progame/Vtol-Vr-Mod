@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:pages="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels.Pages"
              xmlns:vm="clr-namespace:VTOLVRWorkshopProfileSwitcher.ViewModels"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="VTOLVRWorkshopProfileSwitcher.Views.Pages.ProfilesPageView"
              x:DataType="pages:ProfilesPageViewModel"
              x:CompileBindings="False"
@@ -13,7 +14,7 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
         <TextBlock Text="Profiles" Classes="section-title" />
         <TextBox Grid.Column="1" Margin="12,0,0,0" Text="{Binding Shell.ProfileSearchQuery}" Watermark="Search profiles..." />
-        <Button Grid.Column="2" Margin="8,0,0,0" Content="Import Package" Classes="secondary-button" Command="{Binding Shell.ImportProfilePackageCommand}" />
+        <Button Grid.Column="2" Margin="8,0,0,0" Content="+ Import" Classes="secondary-button" Command="{Binding Shell.ImportProfilePackageCommand}" />
         <Button Grid.Column="3" Margin="8,0,0,0" Content="Export Selected" Classes="secondary-button" Command="{Binding Shell.ExportSelectedProfilePackageCommand}" />
         <Button Grid.Column="4" Margin="8,0,0,0" Content="Export All" Classes="secondary-button" Command="{Binding Shell.ExportAllProfilesPackageCommand}" />
       </Grid>
@@ -21,7 +22,7 @@
 
     <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
-        <Button Content="Add Profile" Classes="primary-button" Command="{Binding Shell.OpenAddProfileDialogCommand}" />
+        <Button Content="+ Add Profile" Classes="primary-button" Command="{Binding Shell.OpenAddProfileDialogCommand}" />
         <Button Grid.Column="2"
                 Content="Delete Selected"
                 Classes="warning-button"
@@ -32,22 +33,31 @@
 
     <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0">
       <ListBox x:Name="ProfilesList"
+               Classes="modern-list"
                ItemsSource="{Binding Shell.FilteredProfiles}"
                SelectedItem="{Binding Shell.SelectedProfile}"
                SelectionMode="Multiple">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ProfileItemViewModel">
-            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-              <Border Classes="card-panel" Padding="10" DoubleTapped="OnProfileItemDoubleTapped">
-                <StackPanel Spacing="2">
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                  <TextBlock Text="{Binding Summary}" Classes="text-muted" />
-                </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+              <Border Classes="list-row" DoubleTapped="OnProfileItemDoubleTapped">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <Border Classes="list-avatar">
+                    <materialIcons:MaterialIcon Kind="{Binding IconKind}" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" />
+                    <TextBlock Text="{Binding Summary}" Classes="text-muted" />
+                  </StackPanel>
+                  <Border Grid.Column="2" Classes="pill" VerticalAlignment="Center">
+                    <TextBlock Text="Profile" />
+                  </Border>
+                </Grid>
               </Border>
               <Button Grid.Column="1"
                       Margin="8,0,0,0"
                       VerticalAlignment="Center"
-                      Width="74"
+                      Width="82"
                       Content="Open"
                       Classes="secondary-button"
                       Command="{Binding $parent[UserControl].DataContext.Shell.OpenProfileDetailsCommand}"

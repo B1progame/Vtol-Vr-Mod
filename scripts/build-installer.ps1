@@ -2,6 +2,9 @@ param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$Version = "",
+    [string]$VersionTag = "",
+    [ValidateSet("Stable", "Beta")]
+    [string]$Channel = "Stable",
     [string]$InnoCompiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 )
 
@@ -13,12 +16,29 @@ $publishDir = Join-Path $publishRoot ("win-x64-" + (Get-Date -Format "yyyyMMdd-H
 $issPath = Join-Path $PSScriptRoot "..\installer\VTOLVRWorkshopProfileSwitcher.iss"
 $iconPath = Join-Path $PSScriptRoot "..\src\VTOLVRWorkshopProfileSwitcher\Assets\AppIcon.ico"
 $licensePath = Join-Path $PSScriptRoot "..\LICENSE"
+$isBeta = $Channel -eq "Beta"
+$outputBaseFilename = if ($isBeta) { "VTOLVRSwitcher-Beta-Setup" } else { "VTOLVRSwitcher-Setup" }
+$appName = if ($isBeta) { "VTOL VR Switcher Beta" } else { "VTOL VR Switcher" }
+$defaultDirName = if ($isBeta) { "{autopf}\VTOL VR Switcher Beta" } else { "{autopf}\VTOL VR Switcher" }
+$defaultGroupName = if ($isBeta) { "VTOL VR Switcher Beta" } else { "VTOL VR Switcher" }
+$appId = if ($isBeta) { '{{9D0A1B60-2F02-4D7B-9B6F-9C9A1E1F4A12}}' } else { '{{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}}' }
+$defaultIncludeBetaUpdates = if ($isBeta) { "true" } else { "false" }
 
 $versionText = [string]$Version
 if ($null -eq $versionText) {
     $versionText = string.Empty
 }
 $versionText = $versionText.Trim()
+
+$versionTagText = [string]$VersionTag
+if ($null -eq $versionTagText) {
+    $versionTagText = string.Empty
+}
+$versionTagText = $versionTagText.Trim()
+
+if ([string]::IsNullOrWhiteSpace($versionText) -and -not [string]::IsNullOrWhiteSpace($versionTagText)) {
+    $versionText = ($versionTagText.TrimStart("v", "V") -split "-", 2)[0].Trim()
+}
 
 if ([string]::IsNullOrWhiteSpace($versionText)) {
     [xml]$projectXml = Get-Content -LiteralPath $project
@@ -31,6 +51,10 @@ if ([string]::IsNullOrWhiteSpace($versionText)) {
 
 if ([string]::IsNullOrWhiteSpace($versionText)) {
     throw "Version cannot be empty."
+}
+
+if ([string]::IsNullOrWhiteSpace($versionTagText)) {
+    $versionTagText = $versionText
 }
 
 $parsedVersion = $null
@@ -59,7 +83,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Publishing app to $publishDir ..."
-dotnet publish $project -c $Configuration -r $Runtime --self-contained true /p:PublishSingleFile=true /p:Version=$versionText /p:InformationalVersion=$versionText /p:AssemblyVersion=$assemblyFileVersion /p:FileVersion=$assemblyFileVersion -o $publishDir
+dotnet publish $project -c $Configuration -r $Runtime --self-contained true /p:PublishSingleFile=true /p:Version=$versionText /p:InformationalVersion=$versionTagText /p:AssemblyVersion=$assemblyFileVersion /p:FileVersion=$assemblyFileVersion -o $publishDir
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed with exit code $LASTEXITCODE"
 }
@@ -82,7 +106,7 @@ if (-not (Test-Path $InnoCompiler)) {
 }
 
 Write-Host "Building installer..."
-& $InnoCompiler "/DMyAppVersion=$versionText" "/DSourceDir=$publishDir" "/DIconFile=$iconPath" "/DLicenseFile=$licensePath" $issPath
+& $InnoCompiler "/DMyAppVersion=$versionText" "/DSourceDir=$publishDir" "/DIconFile=$iconPath" "/DLicenseFile=$licensePath" "/DAppChannel=$Channel" "/DMyAppName=$appName" "/DMyAppId=$appId" "/DMyOutputBaseFilename=$outputBaseFilename" "/DMyDefaultDirName=$defaultDirName" "/DMyDefaultGroupName=$defaultGroupName" "/DDefaultIncludeBetaUpdates=$defaultIncludeBetaUpdates" $issPath
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup compile failed with exit code $LASTEXITCODE"
 }

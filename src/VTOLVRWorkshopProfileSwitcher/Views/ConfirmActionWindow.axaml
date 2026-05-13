@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="VTOLVRWorkshopProfileSwitcher.Views.ConfirmActionWindow"
+        Width="520"
+        Height="240"
+        MinWidth="420"
+        MinHeight="220"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}">
+  <Border Classes="card-panel" Margin="12" Padding="16">
+    <Grid RowDefinitions="Auto,*,Auto">
+      <TextBlock x:Name="TitleBlock" FontSize="20" FontWeight="Bold" />
+      <TextBlock x:Name="MessageBlock" Grid.Row="1" Margin="0,14,0,0" TextWrapping="Wrap" />
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
+        <Button Grid.Column="1" x:Name="CancelButton" Content="Cancel" Classes="secondary-button" Click="OnCancelClick" />
+        <Button Grid.Column="2" x:Name="ConfirmButton" Margin="8,0,0,0" Content="Continue" Classes="warning-button" Click="OnConfirmClick" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

@@ -19,7 +19,11 @@ public partial class AddProfileWindow : Window
             return;
         }
 
-        Close(new AddProfileDialogResult(vm.ProfileName, vm.Notes, vm.ActivateAllMods));
+        Close(new AddProfileDialogResult(
+            vm.ProfileName,
+            vm.Notes,
+            vm.ActivateAllMods,
+            vm.SelectedProfileIcon.IconName));
     }
 
     private void OnCancelClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

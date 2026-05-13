@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Material.Icons;
 using VTOLVRWorkshopProfileSwitcher.Models;
 
 namespace VTOLVRWorkshopProfileSwitcher.Services;
@@ -31,6 +32,7 @@ public sealed class ProfilePackageService
             {
                 Name = profile.Name,
                 Notes = profile.Notes,
+                IconKind = NormalizeIconKind(profile.IconKind),
                 EnabledWorkshopIds = profile.EnabledMods
                     .Where(IsNumericWorkshopId)
                     .Distinct(StringComparer.Ordinal)
@@ -154,6 +156,7 @@ public sealed class ProfilePackageService
             {
                 Name = finalName,
                 Notes = profileDocument.Notes?.Trim() ?? string.Empty,
+                IconKind = NormalizeIconKind(profileDocument.IconKind),
                 EnabledMods = normalizedIds,
                 IncludedMods = normalizedIncludedIds,
                 CreatedAt = now
@@ -189,4 +192,8 @@ public sealed class ProfilePackageService
     {
         return !string.IsNullOrWhiteSpace(value) && value.All(char.IsDigit);
     }
+
+    private static string NormalizeIconKind(string? iconKind) => Enum.TryParse<MaterialIconKind>(iconKind, out var parsed)
+        ? parsed.ToString()
+        : "AccountGroup";
 }

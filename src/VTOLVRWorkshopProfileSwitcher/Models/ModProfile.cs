@@ -10,4 +10,5 @@ public sealed class ModProfile
     public List<string> IncludedMods { get; init; } = new();
     public required DateTime CreatedAt { get; init; }
     public string Notes { get; init; } = string.Empty;
+    public string IconKind { get; init; } = "AccountGroup";
 }

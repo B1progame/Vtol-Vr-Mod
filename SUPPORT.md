@@ -16,7 +16,7 @@ Use GitHub issues for bug reports, feature requests, and troubleshooting:
 
 - App version.
 - Windows version.
-- Whether you installed from a release build or built from source.
+- Installation source: release build or source build.
 - Steps to reproduce the issue.
 - Relevant log lines.
 - Screenshots, if the problem is visual.

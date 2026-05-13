@@ -23,6 +23,7 @@ public sealed partial class MainWindowViewModel
 {
     private DashboardPageViewModel? _dashboardPage;
     private ProfilesPageViewModel? _profilesPage;
+    private ServersPageViewModel? _serversPage;
     private ModsPageViewModel? _modsPage;
     private BackupsPageViewModel? _backupsPage;
     private LogsPageViewModel? _logsPage;
@@ -74,6 +75,9 @@ public sealed partial class MainWindowViewModel
     private bool selectedProfileModActiveInProfile;
 
     [ObservableProperty]
+    private ServerItemViewModel? selectedServer;
+
+    [ObservableProperty]
     private bool isAddModSelectionMode;
 
     [ObservableProperty]
@@ -90,6 +94,7 @@ public sealed partial class MainWindowViewModel
     public int UpdatesAvailableCount => 0;
     public bool IsDashboardSelected => SelectedNavItem == NavItem.Dashboard;
     public bool IsProfilesSelected => SelectedNavItem == NavItem.Profiles;
+    public bool IsServersSelected => SelectedNavItem == NavItem.Servers;
     public bool IsModsSelected => SelectedNavItem == NavItem.Mods;
     public bool IsBackupsSelected => SelectedNavItem == NavItem.Backups;
     public bool IsLogsSelected => SelectedNavItem == NavItem.Logs;
@@ -131,6 +136,7 @@ public sealed partial class MainWindowViewModel
     {
         _dashboardPage = new DashboardPageViewModel(this);
         _profilesPage = new ProfilesPageViewModel(this);
+        _serversPage = new ServersPageViewModel(this);
         _modsPage = new ModsPageViewModel(this);
         _backupsPage = new BackupsPageViewModel(this);
         _logsPage = new LogsPageViewModel(this);
@@ -158,6 +164,7 @@ public sealed partial class MainWindowViewModel
     {
         OnPropertyChanged(nameof(IsDashboardSelected));
         OnPropertyChanged(nameof(IsProfilesSelected));
+        OnPropertyChanged(nameof(IsServersSelected));
         OnPropertyChanged(nameof(IsModsSelected));
         OnPropertyChanged(nameof(IsBackupsSelected));
         OnPropertyChanged(nameof(IsLogsSelected));
@@ -416,6 +423,20 @@ public sealed partial class MainWindowViewModel
     }
 
     [RelayCommand]
+    private async Task NavigateServersAsync()
+    {
+        IsAddModSelectionMode = false;
+        if (_serversPage is null)
+        {
+            InitializeShell();
+        }
+
+        SelectedNavItem = NavItem.Servers;
+        CurrentPageViewModel = _serversPage;
+        await LoadServersIfNeededAsync();
+    }
+
+    [RelayCommand]
     private void NavigateMods()
     {
         IsAddModSelectionMode = false;
@@ -483,6 +504,7 @@ public sealed partial class MainWindowViewModel
         ProfileUnderEdit = profile;
         ProfileNameInput = profile.Name;
         ProfileNotesInput = profile.Notes;
+        SelectedProfileIcon = ProfileIconCatalog.GetOption(profile.Source.IconKind);
         SelectedNavItem = NavItem.Profiles;
         CurrentPageViewModel = new ProfileDetailsPageViewModel(this, profile);
     }
@@ -598,7 +620,8 @@ public sealed partial class MainWindowViewModel
             Notes = ProfileNotesInput.Trim(),
             CreatedAt = old.CreatedAt,
             EnabledMods = old.EnabledMods.Distinct(StringComparer.Ordinal).ToList(),
-            IncludedMods = GetIncludedProfileModIds(old)
+            IncludedMods = GetIncludedProfileModIds(old),
+            IconKind = SelectedProfileIcon.IconName
         };
 
         if (!string.Equals(old.Name, newName, StringComparison.Ordinal))
@@ -660,7 +683,8 @@ public sealed partial class MainWindowViewModel
             Notes = source.Notes,
             CreatedAt = source.CreatedAt,
             EnabledMods = enabledIds.Distinct(StringComparer.Ordinal).ToList(),
-            IncludedMods = includedIds.Distinct(StringComparer.Ordinal).ToList()
+            IncludedMods = includedIds.Distinct(StringComparer.Ordinal).ToList(),
+            IconKind = source.IconKind
         };
 
         await _profileService.SaveProfileAsync(updated);
@@ -703,7 +727,8 @@ public sealed partial class MainWindowViewModel
             IncludedMods = includedIds
                 .Where(id => !string.Equals(id, entry.WorkshopId, StringComparison.Ordinal))
                 .Distinct(StringComparer.Ordinal)
-                .ToList()
+                .ToList(),
+            IconKind = source.IconKind
         };
 
         await _profileService.SaveProfileAsync(updated);
@@ -809,7 +834,8 @@ public sealed partial class MainWindowViewModel
             Notes = source.Notes,
             CreatedAt = source.CreatedAt,
             EnabledMods = enabledIds.Distinct(StringComparer.Ordinal).ToList(),
-            IncludedMods = includedIds.Distinct(StringComparer.Ordinal).ToList()
+            IncludedMods = includedIds.Distinct(StringComparer.Ordinal).ToList(),
+            IconKind = source.IconKind
         };
 
         await _profileService.SaveProfileAsync(updated);

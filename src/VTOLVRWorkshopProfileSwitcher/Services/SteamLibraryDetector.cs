@@ -15,6 +15,11 @@ public sealed class SteamLibraryDetector
 
     public async Task<IReadOnlyList<string>> FindWorkshopPathsAsync(CancellationToken cancellationToken = default)
     {
+        return await FindWorkshopPathsAsync(TargetAppId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> FindWorkshopPathsAsync(string appId, CancellationToken cancellationToken = default)
+    {
         var libraryFolders = GetLibraryFoldersFilePath();
         if (string.IsNullOrWhiteSpace(libraryFolders) || !File.Exists(libraryFolders))
         {
@@ -41,10 +46,16 @@ public sealed class SteamLibraryDetector
 
         return libraryPaths
             .Where(Directory.Exists)
-            .Select(path => Path.Combine(path, "steamapps", "workshop", "content", TargetAppId))
+            .Select(path => Path.Combine(path, "steamapps", "workshop", "content", appId))
             .Where(Directory.Exists)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    public async Task<string?> FindFirstWorkshopPathAsync(string appId, CancellationToken cancellationToken = default)
+    {
+        var paths = await FindWorkshopPathsAsync(appId, cancellationToken);
+        return paths.FirstOrDefault();
     }
 
     private static string? GetLibraryFoldersFilePath()
