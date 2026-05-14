@@ -252,6 +252,69 @@
         </Grid>
       </Grid>
     </Border>
+
+    <Border Grid.ColumnSpan="3"
+            Background="#E61A1D24"
+            IsVisible="{Binding IsStartupLoading}"
+            ZIndex="50">
+      <Grid>
+        <Border Width="540"
+                MaxWidth="540"
+                Padding="28"
+                CornerRadius="14"
+                Background="#F0222730"
+                BorderBrush="#66B63B3B"
+                BorderThickness="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+          <StackPanel Spacing="18">
+            <StackPanel HorizontalAlignment="Center" Spacing="10">
+              <Border Width="84"
+                      Height="84"
+                      CornerRadius="18"
+                      Background="#18283A"
+                      BorderBrush="#33556F92"
+                      BorderThickness="1"
+                      Padding="10">
+                <Image Source="/Assets/AppIcon-2.png" Stretch="Uniform" />
+              </Border>
+              <TextBlock Text="VTOL VR Switcher"
+                         FontSize="28"
+                         FontWeight="Bold"
+                         HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding StartupStatusText}"
+                         Classes="text-muted"
+                         FontSize="15"
+                         TextAlignment="Center"
+                         HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <ProgressBar Minimum="0"
+                         Maximum="100"
+                         Value="{Binding StartupProgressValue}"
+                         Height="12"
+                         CornerRadius="999" />
+
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding StartupEtaText}"
+                         Classes="text-muted"
+                         VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1"
+                         Text="{Binding StartupProgressText}"
+                         FontSize="20"
+                         FontWeight="Bold"
+                         VerticalAlignment="Center" />
+            </Grid>
+
+            <TextBlock Text="Large mod libraries can make startup take a little longer."
+                       Classes="text-muted"
+                       FontSize="13"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
   </Grid>
   </Border>
 </Window>

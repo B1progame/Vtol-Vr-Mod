@@ -87,6 +87,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private DateTime _lastAutoCleanupUtc = DateTime.MinValue;
     private bool _startupInitializationComplete;
     private bool _startupUpdateCheckQueued;
+    private readonly Stopwatch _startupStopwatch = new();
 
     [ObservableProperty]
     private ObservableCollection<ModItemViewModel> filteredMods = new();
@@ -137,6 +138,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool isVtolRunning;
+
+    [ObservableProperty]
+    private bool isStartupLoading = true;
+
+    [ObservableProperty]
+    private double startupProgressValue;
+
+    [ObservableProperty]
+    private string startupProgressText = "0%";
+
+    [ObservableProperty]
+    private string startupStatusText = "Starting launcher...";
+
+    [ObservableProperty]
+    private string startupEtaText = "ETA: estimating...";
 
     [ObservableProperty]
     private bool requestTrayHideAfterLaunch;
@@ -253,6 +269,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         EnsureGitHubHttpDefaults();
         InitializeShell();
         StartVtolRunningMonitor();
+        _startupStopwatch.Start();
 
         _ = InitializeAsync();
     }
@@ -1344,12 +1361,65 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private async Task InitializeAsync()
     {
-        await LoadSettingsAsync();
-        await DetectPathsAsync();
-        await LoadProfilesAsync();
-        await LoadShellDataAsync();
-        _startupInitializationComplete = true;
-        QueueStartupUpdateCheck();
+        await UpdateStartupProgressAsync(0.05, "Loading settings...");
+
+        try
+        {
+            await LoadSettingsAsync();
+            await UpdateStartupProgressAsync(0.18, "Detecting Steam libraries...");
+
+            await DetectPathsAsync();
+            await UpdateStartupProgressAsync(0.72, "Loading profiles...");
+
+            await LoadProfilesAsync();
+            await UpdateStartupProgressAsync(0.86, "Loading backups and logs...");
+
+            await LoadShellDataAsync();
+            await UpdateStartupProgressAsync(0.97, "Finalizing startup...");
+
+            _startupInitializationComplete = true;
+            QueueStartupUpdateCheck();
+            await UpdateStartupProgressAsync(1.0, "Ready");
+        }
+        finally
+        {
+            IsStartupLoading = false;
+            StartupEtaText = "Ready";
+            _startupStopwatch.Stop();
+        }
+    }
+
+    private Task UpdateStartupProgressAsync(double progress, string status)
+    {
+        progress = Math.Clamp(progress, 0d, 1d);
+        StartupProgressValue = progress * 100d;
+        StartupProgressText = $"{Math.Round(progress * 100d):0}%";
+        StartupStatusText = status;
+
+        if (progress >= 1d)
+        {
+            StartupEtaText = "ETA: done";
+            return Task.CompletedTask;
+        }
+
+        if (progress <= 0.05d || _startupStopwatch.Elapsed.TotalSeconds < 0.4d)
+        {
+            StartupEtaText = "ETA: estimating...";
+            return Task.CompletedTask;
+        }
+
+        var estimatedRemainingSeconds = _startupStopwatch.Elapsed.TotalSeconds * ((1d - progress) / progress);
+        if (estimatedRemainingSeconds < 1d)
+        {
+            StartupEtaText = "ETA: under 1 sec";
+            return Task.CompletedTask;
+        }
+
+        StartupEtaText = estimatedRemainingSeconds >= 90d
+            ? $"ETA: {Math.Round(estimatedRemainingSeconds / 60d):0} min"
+            : $"ETA: {Math.Ceiling(estimatedRemainingSeconds):0} sec";
+
+        return Task.CompletedTask;
     }
 
     private void QueueStartupUpdateCheck()
