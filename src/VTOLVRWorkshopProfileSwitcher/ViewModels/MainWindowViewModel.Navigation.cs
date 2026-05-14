@@ -1374,6 +1374,7 @@ public sealed partial class MainWindowViewModel
             }
 
             await StopServerScanningImmediatelyAsync();
+            await TryStopSteamQueriesIfRunningAsync();
             LaunchVtolVr(doorstopEnabled: true);
             MarkTrayHideAfterLaunchRequested();
             StartVtolExitCleanupWatcher();
@@ -1430,6 +1431,7 @@ public sealed partial class MainWindowViewModel
             }
 
             await StopServerScanningImmediatelyAsync();
+            await TryStopSteamQueriesIfRunningAsync();
             LaunchVtolVr(doorstopEnabled: false);
             MarkTrayHideAfterLaunchRequested();
             StartVtolExitCleanupWatcher();
@@ -1470,8 +1472,6 @@ public sealed partial class MainWindowViewModel
                 Arguments = arguments,
                 UseShellExecute = false
             });
-
-            TryLaunchSteamQueries();
             return;
         }
 
@@ -1480,8 +1480,6 @@ public sealed partial class MainWindowViewModel
             FileName = "steam://run/667970",
             UseShellExecute = true
         });
-
-        TryLaunchSteamQueries();
     }
 
     private void StartVtolRunningMonitor()
@@ -1749,6 +1747,47 @@ public sealed partial class MainWindowViewModel
         catch
         {
             // Optional helper launch should never block game launch.
+        }
+    }
+
+    private async Task TryStopSteamQueriesIfRunningAsync()
+    {
+        var candidates = Process.GetProcessesByName("SteamQueries");
+        if (candidates.Length == 0)
+        {
+            return;
+        }
+
+        await _logger.LogAsync("Stopping SteamQueries helper before VTOL VR launch.");
+
+        foreach (var process in candidates)
+        {
+            try
+            {
+                if (process.HasExited)
+                {
+                    continue;
+                }
+
+                if (process.CloseMainWindow())
+                {
+                    process.WaitForExit(1200);
+                }
+
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(1200);
+                }
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync($"Failed to stop SteamQueries (PID {process.Id}): {ex.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
     }
 

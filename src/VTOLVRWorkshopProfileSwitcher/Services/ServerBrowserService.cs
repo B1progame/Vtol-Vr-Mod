@@ -1,34 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Steamworks;
-using Steamworks.Data;
 using VTOLVRWorkshopProfileSwitcher.Models;
 
 namespace VTOLVRWorkshopProfileSwitcher.Services;
 
 public sealed class ServerBrowserService
 {
-    private const uint VtolVrAppId = 667970;
     private readonly SteamWorkshopInfoService _workshopInfoService = new();
+    private readonly object _probeLock = new();
+    private Process? _activeProbeProcess;
 
     public void StopActiveQuery()
     {
-        try
+        Process? process;
+        lock (_probeLock)
         {
-            if (SteamClient.IsValid)
-            {
-                SteamClient.Shutdown();
-            }
+            process = _activeProbeProcess;
+            _activeProbeProcess = null;
         }
-        catch
-        {
-            // Best-effort only.
-        }
+
+        TryKillProbeProcess(process);
+        ServerBrowserSteamProbe.ShutdownSteamClient();
     }
 
     public async Task<ServerBrowserResult> LoadServersAsync(CancellationToken cancellationToken = default)
@@ -43,80 +41,132 @@ public sealed class ServerBrowserService
             };
         }
 
-        var servers = new List<VtolServerLobby>();
+        var outputPath = Path.Combine(
+            Path.GetTempPath(),
+            "VTOLVRWorkshopProfileSwitcher",
+            "server-probes",
+            $"server-probe-{Guid.NewGuid():N}.json");
 
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            SteamClient.Init(VtolVrAppId, true);
-
-            var lobbies = await SteamMatchmaking.LobbyList
-                .FilterDistanceWorldwide()
-                .WithSlotsAvailable(1)
-                .WithMaxResults(250)
-                .RequestAsync();
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (lobbies is null)
-            {
-                return new ServerBrowserResult
-                {
-                    IsSteamRunning = true,
-                    StatusMessage = "Steam is running, but the VTOL lobby query returned nothing.",
-                    Servers = []
-                };
-            }
-
-            foreach (var lobby in lobbies)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                lobby.Refresh();
-                await WaitForMetadataAsync(lobby, cancellationToken);
-
-                var server = ParseLobby(lobby);
-                if (server is not null)
-                {
-                    servers.Add(server);
-                }
-            }
-
+            var result = await RunProbeProcessAsync(outputPath, cancellationToken);
+            var servers = result.Servers.ToList();
             await EnrichWorkshopDataAsync(servers, cancellationToken);
 
-            var ordered = servers
-                .OrderByDescending(server => server.IsModded)
-                .ThenByDescending(server => server.CurrentPlayers)
-                .ThenBy(server => server.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
             return new ServerBrowserResult
             {
-                IsSteamRunning = true,
-                StatusMessage = ordered.Count == 0
-                    ? "No public joinable servers were found right now."
-                    : $"Found {ordered.Count} public joinable server(s).",
-                Servers = ordered
-            };
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            return new ServerBrowserResult
-            {
-                IsSteamRunning = true,
-                StatusMessage = $"Server refresh failed: {ex.Message}",
-                Servers = []
+                IsSteamRunning = result.IsSteamRunning,
+                StatusMessage = result.StatusMessage,
+                Servers = servers
             };
         }
         finally
         {
-            if (SteamClient.IsValid)
+            TryDeleteFile(outputPath);
+        }
+    }
+
+    private async Task<ServerBrowserResult> RunProbeProcessAsync(string outputPath, CancellationToken cancellationToken)
+    {
+        var exePath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+        {
+            return new ServerBrowserResult
             {
-                SteamClient.Shutdown();
+                IsSteamRunning = true,
+                StatusMessage = "Server refresh failed: launcher path is unavailable.",
+                Servers = []
+            };
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? Path.GetTempPath());
+
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = exePath,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        process.StartInfo.ArgumentList.Add(ServerBrowserProbeMode.Argument);
+        process.StartInfo.ArgumentList.Add("--output");
+        process.StartInfo.ArgumentList.Add(outputPath);
+
+        process.Start();
+        lock (_probeLock)
+        {
+            _activeProbeProcess = process;
+        }
+
+        using var cancellationRegistration = cancellationToken.Register(() => StopActiveQuery());
+
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            StopActiveQuery();
+            throw;
+        }
+        finally
+        {
+            lock (_probeLock)
+            {
+                if (ReferenceEquals(_activeProbeProcess, process))
+                {
+                    _activeProbeProcess = null;
+                }
             }
+        }
+
+        if (!File.Exists(outputPath))
+        {
+            return new ServerBrowserResult
+            {
+                IsSteamRunning = true,
+                StatusMessage = process.ExitCode == 0
+                    ? "Server refresh failed: probe did not return data."
+                    : $"Server refresh failed: probe exited with code {process.ExitCode}.",
+                Servers = []
+            };
+        }
+
+        await using var stream = File.OpenRead(outputPath);
+        var result = await JsonSerializer.DeserializeAsync<ServerBrowserResult>(
+            stream,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            },
+            cancellationToken);
+
+        return result ?? new ServerBrowserResult
+        {
+            IsSteamRunning = true,
+            StatusMessage = "Server refresh failed: probe returned invalid data.",
+            Servers = []
+        };
+    }
+
+    private static void TryKillProbeProcess(Process? process)
+    {
+        if (process is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(1500);
+            }
+        }
+        catch
+        {
+            // Best-effort only.
         }
     }
 
@@ -130,87 +180,6 @@ public sealed class ServerBrowserService
         {
             return false;
         }
-    }
-
-    private static async Task WaitForMetadataAsync(Lobby lobby, CancellationToken cancellationToken)
-    {
-        if (lobby.Data.Any())
-        {
-            return;
-        }
-
-        var started = DateTime.UtcNow;
-        while ((DateTime.UtcNow - started).TotalMilliseconds < 150)
-        {
-            SteamClient.RunCallbacks();
-            if (lobby.Data.Any())
-            {
-                return;
-            }
-
-            await Task.Delay(50, cancellationToken);
-        }
-    }
-
-    private static VtolServerLobby? ParseLobby(Lobby lobby)
-    {
-        var data = lobby.Data
-            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-
-        if (data.Count == 0)
-        {
-            return null;
-        }
-
-        var scenarioName = GetValue(data, "scn", "Unknown Scenario");
-        var scenarioRawId = GetValue(data, "scID", string.Empty);
-        var scenarioSource = "Unknown";
-        var scenarioWorkshopId = string.Empty;
-        var scenarioSubtitle = string.Empty;
-
-        if (scenarioRawId.StartsWith("w,", StringComparison.OrdinalIgnoreCase))
-        {
-            scenarioSource = "Workshop";
-            var parts = scenarioRawId.Split(',', 3, StringSplitOptions.None);
-            if (parts.Length == 3)
-            {
-                scenarioSubtitle = parts[1];
-                scenarioWorkshopId = parts[2];
-            }
-        }
-        else if (scenarioRawId.StartsWith("b,", StringComparison.OrdinalIgnoreCase))
-        {
-            scenarioSource = "Built-in";
-            scenarioSubtitle = scenarioRawId;
-        }
-
-        var requirements = ParseServerRequirements(data);
-        var version = GetValue(data, "ver", "unknown");
-
-        return new VtolServerLobby
-        {
-            LobbyId = lobby.Id.Value,
-            Name = GetValue(data, "lName", "Unnamed Server"),
-            CreatorName = GetValue(data, "oName", "Unknown"),
-            CreatorSteamId = GetValue(data, "oId", string.Empty),
-            State = GetValue(data, "gState", "Unknown"),
-            GameVersion = version,
-            JoinCode = GetValue(data, "plc", string.Empty),
-            ScenarioName = scenarioName,
-            ScenarioSource = scenarioSource,
-            ScenarioWorkshopId = scenarioWorkshopId,
-            ScenarioSubtitle = scenarioSubtitle,
-            CurrentPlayers = lobby.MemberCount,
-            MaxPlayers = lobby.MaxMembers,
-            IsPasswordProtected = string.Equals(GetValue(data, "pwh", "0"), "1", StringComparison.Ordinal),
-            IsDedicated = string.Equals(GetValue(data, "hs", "0"), "1", StringComparison.Ordinal) ||
-                          data.ContainsKey("HCAutoJoinKey"),
-            IsModded = requirements.Count > 0 || version.IndexOf('m') >= 0 || version.IndexOf('M') >= 0,
-            Requirements = requirements,
-            RequiredDlcIds = ParseDlcRequirements(GetValue(data, "dlcReq", string.Empty)),
-            Metadata = data
-        };
     }
 
     private async Task EnrichWorkshopDataAsync(List<VtolServerLobby> servers, CancellationToken cancellationToken)
@@ -259,71 +228,18 @@ public sealed class ServerBrowserService
         }
     }
 
-    private static List<ServerRequirement> ParseServerRequirements(Dictionary<string, string> data)
+    private static void TryDeleteFile(string path)
     {
-        if (!data.TryGetValue("serverItems", out var raw) || string.IsNullOrWhiteSpace(raw))
-        {
-            return [];
-        }
-
         try
         {
-            using var doc = JsonDocument.Parse(raw);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            if (File.Exists(path))
             {
-                return [];
+                File.Delete(path);
             }
-
-            var requirements = new List<ServerRequirement>();
-            foreach (var item in doc.RootElement.EnumerateArray())
-            {
-                var workshopId = item.TryGetProperty("SteamId", out var idEl)
-                    ? idEl.ToString()
-                    : string.Empty;
-
-                if (string.IsNullOrWhiteSpace(workshopId))
-                {
-                    continue;
-                }
-
-                var title = item.TryGetProperty("Title", out var titleEl)
-                    ? titleEl.GetString() ?? $"Workshop Item {workshopId}"
-                    : $"Workshop Item {workshopId}";
-
-                requirements.Add(new ServerRequirement
-                {
-                    WorkshopId = workshopId,
-                    Title = title,
-                    Subtitle = workshopId
-                });
-            }
-
-            return requirements;
         }
         catch
         {
-            return [];
+            // Temporary probe files are best-effort cleanup.
         }
-    }
-
-    private static List<string> ParseDlcRequirements(string raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return [];
-        }
-
-        return raw
-            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(part => !string.IsNullOrWhiteSpace(part))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-    }
-
-    private static string GetValue(Dictionary<string, string> data, string key, string fallback)
-    {
-        return data.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
-            ? value
-            : fallback;
     }
 }

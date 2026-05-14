@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
 using System.Text;
+using VTOLVRWorkshopProfileSwitcher.Services;
 
 namespace VTOLVRWorkshopProfileSwitcher;
 
@@ -20,6 +21,12 @@ internal static class Program
 
         try
         {
+            if (ServerBrowserProbeMode.IsRequested(args))
+            {
+                Environment.ExitCode = ServerBrowserProbeMode.RunAsync(args).GetAwaiter().GetResult();
+                return;
+            }
+
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
