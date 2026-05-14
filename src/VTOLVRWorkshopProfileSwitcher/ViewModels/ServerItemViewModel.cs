@@ -6,8 +6,10 @@ using VTOLVRWorkshopProfileSwitcher.Models;
 
 namespace VTOLVRWorkshopProfileSwitcher.ViewModels;
 
-public sealed class ServerItemViewModel
+public sealed class ServerItemViewModel : IDisposable
 {
+    private const int ThumbnailDecodeWidth = 384;
+
     public VtolServerLobby Source { get; }
     public string ServerName => Source.Name;
     public string CreatorName => Source.CreatorName;
@@ -36,10 +38,27 @@ public sealed class ServerItemViewModel
     public bool IsModded => Source.IsModded;
     public bool HasScenarioRequirement => ScenarioRequirement is not null;
     public string ScenarioSource => Source.ScenarioSource;
-    public Bitmap? ThumbnailImage { get; }
+    public Bitmap? ThumbnailImage
+    {
+        get
+        {
+            if (!_thumbnailLoadAttempted)
+            {
+                _thumbnailLoadAttempted = true;
+                _thumbnailLease = ViewModelImageLoader.TryAcquireBitmap(Source.ThumbnailPath, ThumbnailDecodeWidth);
+                _thumbnailImage = _thumbnailLease?.Bitmap;
+            }
+
+            return _thumbnailImage;
+        }
+    }
     public List<ServerRequirementViewModel> RequiredItems { get; }
     public ServerRequirementViewModel? ScenarioRequirement { get; }
     public List<ServerRequirementViewModel> MissingItems { get; }
+    private Bitmap? _thumbnailImage;
+    private ViewModelImageLoader.BitmapLease? _thumbnailLease;
+    private bool _thumbnailLoadAttempted;
+    private bool _disposed;
 
     public ServerItemViewModel(
         VtolServerLobby source,
@@ -47,7 +66,6 @@ public sealed class ServerItemViewModel
         IReadOnlySet<string> installedScenarioIds)
     {
         Source = source;
-        ThumbnailImage = ViewModelImageLoader.TryLoadBitmap(source.ThumbnailPath);
 
         foreach (var requirement in Source.Requirements)
         {
@@ -86,5 +104,25 @@ public sealed class ServerItemViewModel
         {
             MissingItems.Insert(0, ScenarioRequirement);
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        foreach (var requirement in RequiredItems)
+        {
+            requirement.Dispose();
+        }
+
+        ScenarioRequirement?.Dispose();
+        _thumbnailLease?.Dispose();
+        _thumbnailLease = null;
+        _thumbnailImage = null;
     }
 }

@@ -19,10 +19,11 @@ $licensePath = Join-Path $PSScriptRoot "..\LICENSE"
 $isBeta = $Channel -eq "Beta"
 $outputBaseFilename = if ($isBeta) { "VTOLVRSwitcher-Beta-Setup" } else { "VTOLVRSwitcher-Setup" }
 $appName = if ($isBeta) { "VTOL VR Switcher Beta" } else { "VTOL VR Switcher" }
-$defaultDirName = if ($isBeta) { "{autopf}\VTOL VR Switcher Beta" } else { "{autopf}\VTOL VR Switcher" }
+$defaultDirName = "{autopf}\VTOL VR Switcher"
 $defaultGroupName = if ($isBeta) { "VTOL VR Switcher Beta" } else { "VTOL VR Switcher" }
-$appId = if ($isBeta) { '{{9D0A1B60-2F02-4D7B-9B6F-9C9A1E1F4A12}}' } else { '{{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}}' }
+$appId = '{{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}}'
 $defaultIncludeBetaUpdates = if ($isBeta) { "true" } else { "false" }
+$showHeaderBetaBadgeForStableBuilds = if ($isBeta) { "true" } else { "false" }
 
 $versionText = [string]$Version
 if ($null -eq $versionText) {
@@ -83,7 +84,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Publishing app to $publishDir ..."
-dotnet publish $project -c $Configuration -r $Runtime --self-contained true /p:PublishSingleFile=true /p:Version=$versionText /p:InformationalVersion=$versionTagText /p:AssemblyVersion=$assemblyFileVersion /p:FileVersion=$assemblyFileVersion -o $publishDir
+dotnet publish $project -c $Configuration -r $Runtime --self-contained true /p:PublishSingleFile=true /p:Version=$versionText /p:InformationalVersion=$versionTagText /p:AssemblyVersion=$assemblyFileVersion /p:FileVersion=$assemblyFileVersion /p:ShowHeaderBetaBadgeForStableBuilds=$showHeaderBetaBadgeForStableBuilds -o $publishDir
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed with exit code $LASTEXITCODE"
 }

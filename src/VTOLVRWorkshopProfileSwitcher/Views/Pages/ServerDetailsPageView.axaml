@@ -13,39 +13,39 @@
     <Border Classes="toolbar-panel" Padding="12">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
         <Button Content="&lt; Back" Classes="secondary-button" Command="{Binding Shell.BackToServersCommand}" />
-        <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="{Binding Server.ServerName}" Classes="section-title" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="{Binding Shell.SelectedServer.ServerName}" Classes="section-title" VerticalAlignment="Center" />
         <Button Grid.Column="2" Content="Copy Join Code" Classes="secondary-button" Command="{Binding Shell.CopySelectedServerJoinCodeCommand}" />
         <Button Grid.Column="3" Margin="8,0,0,0" Content="Open Missing" Classes="warning-button" Command="{Binding Shell.OpenAllMissingServerItemsCommand}" />
-        <Button Grid.Column="4" Margin="8,0,0,0" Content="Create Modpack" Classes="primary-button" Command="{Binding Shell.CreateModpackForServerCommand}" CommandParameter="{Binding Server}" />
+        <Button Grid.Column="4" Margin="8,0,0,0" Content="Create Modpack" Classes="primary-button" Command="{Binding Shell.CreateModpackForServerCommand}" CommandParameter="{Binding Shell.SelectedServer}" />
       </Grid>
     </Border>
 
     <Border Grid.Row="1" Classes="card-panel" Padding="12" Margin="0,12,0,0">
       <Grid ColumnDefinitions="*,*">
         <StackPanel Spacing="6">
-          <TextBlock Text="{Binding Server.CreatorLine}" Classes="text-muted" />
-          <TextBlock Text="{Binding Server.ScenarioName}" FontWeight="SemiBold" />
-          <TextBlock Text="{Binding Server.State, StringFormat=State: {0}}" Classes="text-muted" />
-          <TextBlock Text="{Binding Server.ServerTypeSummary, StringFormat=Type: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.SelectedServer.CreatorLine}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.SelectedServer.ScenarioName}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Shell.SelectedServer.State, StringFormat=State: {0}}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.SelectedServer.ServerTypeSummary, StringFormat=Type: {0}}" Classes="text-muted" />
         </StackPanel>
         <StackPanel Grid.Column="1" Spacing="6">
-          <TextBlock Text="{Binding Server.PlayerSummary, StringFormat=Players: {0}}" />
-          <TextBlock Text="{Binding Server.PasswordSummary, StringFormat=Access: {0}}" />
-          <TextBlock Text="{Binding Server.GameVersion, StringFormat=Version: {0}}" />
-          <TextBlock Text="{Binding Server.PingText, StringFormat=Ping: {0}}" />
-          <TextBlock Text="{Binding Server.JoinCode, StringFormat=Join Code: {0}}" />
-          <TextBlock Text="{Binding Server.DlcSummary, StringFormat=DLC: {0}}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Shell.SelectedServer.PlayerSummary, StringFormat=Players: {0}}" />
+          <TextBlock Text="{Binding Shell.SelectedServer.PasswordSummary, StringFormat=Access: {0}}" />
+          <TextBlock Text="{Binding Shell.SelectedServer.GameVersion, StringFormat=Version: {0}}" />
+          <TextBlock Text="{Binding Shell.SelectedServer.PingText, StringFormat=Ping: {0}}" />
+          <TextBlock Text="{Binding Shell.SelectedServer.JoinCode, StringFormat=Join Code: {0}}" />
+          <TextBlock Text="{Binding Shell.SelectedServer.DlcSummary, StringFormat=DLC: {0}}" TextWrapping="Wrap" />
         </StackPanel>
       </Grid>
     </Border>
 
-    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0" IsVisible="{Binding Server.HasScenarioRequirement}">
+    <Border Grid.Row="2" Classes="card-panel" Padding="12" Margin="0,12,0,0" IsVisible="{Binding Shell.HasSelectedServerScenario}">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4">
           <TextBlock Text="Scenario" Classes="section-title" />
-          <TextBlock Text="{Binding ScenarioRequirement.Title}" FontWeight="SemiBold" />
-          <TextBlock Text="{Binding ScenarioRequirement.Subtitle}" Classes="text-muted" />
-          <TextBlock Text="{Binding ScenarioRequirement.StatusText}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.SelectedServerScenario.Title}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Shell.SelectedServerScenario.Subtitle}" Classes="text-muted" />
+          <TextBlock Text="{Binding Shell.SelectedServerScenario.StatusText}" Classes="text-muted" />
         </StackPanel>
         <Button Grid.Column="1"
                 VerticalAlignment="Center"
@@ -72,7 +72,7 @@
                      VerticalAlignment="Center"
                      IsVisible="{Binding Shell.ShowSelectedServerRequirementsEmpty}" />
           <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsVisible="{Binding Shell.HasSelectedServerRequirements}">
-            <ItemsControl ItemsSource="{Binding Requirements}">
+            <ItemsControl ItemsSource="{Binding Shell.SelectedServerRequirements}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <WrapPanel ItemWidth="254" />

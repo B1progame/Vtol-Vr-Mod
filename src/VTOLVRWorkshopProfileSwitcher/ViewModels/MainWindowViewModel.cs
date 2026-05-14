@@ -43,6 +43,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private static readonly string CurrentVersionId = GetCurrentVersionId();
     private static readonly string CurrentVersionDisplay = GetCurrentVersionDisplay(CurrentVersionId);
     private static readonly bool IsCurrentBetaBuild = IsPrereleaseVersionId(CurrentVersionId);
+#if SHOW_HEADER_BETA_BADGE_FOR_STABLE_BUILDS
+    private const bool ShowHeaderBetaBadgeForStableBuilds = true;
+#else
+    private const bool ShowHeaderBetaBadgeForStableBuilds = false;
+#endif
     private static readonly HttpClient GitHubHttpClient = new();
     private readonly AppPaths _appPaths = new();
     private readonly SteamLibraryDetector _detector = new();
@@ -215,6 +220,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public bool CanApplyAgain => _lastRequestedEnabledSet is not null && _lastRequestedEnabledSet.Count > 0;
     public string AppAuthor => "B1progame";
     public string AppCreatedOn => "2026-02-15";
+    public string WindowTitle => IsCurrentBetaBuild ? "VTOL VR Switcher Beta" : "VTOL VR Switcher";
     public string CurrentVersionText => $"v{CurrentVersionDisplay}";
     public string CurrentVersionIdText => CurrentVersionId;
     public string UpdateChannelText => IsCurrentBetaBuild ? "Beta build" : IncludeBetaUpdates ? "Beta channel" : "Stable channel";
@@ -227,6 +233,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public bool ShowDowngradeHint => !IncludeBetaUpdates;
     public string DowngradeStatusText => IncludeBetaUpdates ? "Beta tools enabled: Yes" : "Beta tools enabled: No";
     public bool CanInstallSelectedDowngrade => IncludeBetaUpdates && SelectedDowngradeRelease is not null && !IsLoadingDowngradeReleases;
+    public bool ShowSidebarBetaBadge => IsCurrentBetaBuild || ShowHeaderBetaBadgeForStableBuilds;
 
     public MainWindowViewModel()
     {
@@ -262,9 +269,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _addModeProfileSaveCts?.Dispose();
         _dependencyPreviewCts?.Cancel();
         _dependencyPreviewCts?.Dispose();
+        _selectedServerRefreshCts?.Cancel();
+        _selectedServerRefreshCts?.Dispose();
         _profileDependencyToggleCts?.Cancel();
         _profileDependencyToggleCts?.Dispose();
         _watcher.Dispose();
+        DisposeItems(_allMods);
+        DisposeItems(Servers);
+        ViewModelImageLoader.DisposeAll();
+        _selectedServerRefreshLock.Dispose();
         _autoCleanupLock.Dispose();
         _liveDependencyLock.Dispose();
         _refreshLock.Dispose();
@@ -394,6 +407,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanInstallSelectedDowngrade));
         OnPropertyChanged(nameof(UpdateChannelText));
         OnPropertyChanged(nameof(UpdateChannelDescription));
+        OnPropertyChanged(nameof(ShowSidebarBetaBadge));
         SaveSettingsIfNeeded();
     }
 
@@ -747,14 +761,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
 
             var scanned = await _scanner.ScanAsync(ActiveWorkshopPath);
+            var selectedModId = SelectedMod?.WorkshopId;
+            var oldMods = _allMods.ToList();
 
+            SelectedMod = null;
             _allMods.Clear();
             foreach (var mod in scanned)
             {
                 _allMods.Add(new ModItemViewModel(mod, DeleteModAsync));
             }
 
+            DisposeItems(oldMods);
+
             ApplyFilter();
+            if (!string.IsNullOrWhiteSpace(selectedModId))
+            {
+                SelectedMod = _allMods.FirstOrDefault(mod =>
+                    string.Equals(mod.WorkshopId, selectedModId, StringComparison.Ordinal));
+            }
+
             StatusMessage = _allMods.Count == 0
                 ? "No mods found in current workshop path"
                 : $"Loaded {_allMods.Count} mods";
@@ -2257,6 +2282,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 return false;
             }
+        }
+    }
+
+    private static void DisposeItems<T>(IEnumerable<T>? items) where T : class, IDisposable
+    {
+        if (items is null)
+        {
+            return;
+        }
+
+        var seen = new HashSet<T>(ReferenceEqualityComparer.Instance);
+        foreach (var item in items)
+        {
+            if (item is null || !seen.Add(item))
+            {
+                continue;
+            }
+
+            item.Dispose();
         }
     }
 

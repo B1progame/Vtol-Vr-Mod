@@ -55,6 +55,7 @@
               <controls:ModCardView ThumbnailImage="{Binding ThumbnailImage}"
                                     Title="{Binding ModName}"
                                     Subtitle="{Binding WorkshopId}"
+                                    OpenDetailsOnCardClick="True"
                                     ShowToggle="{Binding $parent[UserControl].DataContext.Shell.IsAddModSelectionMode}"
                                     ModEnabled="{Binding IsEnabled, Mode=TwoWay}"
                                     SecondaryActionText="Add"

@@ -4,16 +4,21 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ShowHeaderBetaBadgeForStableBuilds>false</ShowHeaderBetaBadgeForStableBuilds>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Company>VTOLVR Workshop Tools</Company>
-    <Authors>VTOLVR Workshop Tools</Authors>
+    <Company>B1progame | VTOLVR Workshop Tools</Company>
+    <Authors>B1progame | VTOLVR Workshop Tools</Authors>
     <Product>VTOL VR Switcher</Product>
     <Description>Profile-based workshop mod folder switcher for VTOL VR.</Description>
     <Version>1.1.8</Version>
     <AssemblyVersion>1.1.8.0</AssemblyVersion>
     <FileVersion>1.1.8.0</FileVersion>
     <InformationalVersion>1.1.8</InformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ShowHeaderBetaBadgeForStableBuilds)' == 'true'">
+    <DefineConstants>$(DefineConstants);SHOW_HEADER_BETA_BADGE_FOR_STABLE_BUILDS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

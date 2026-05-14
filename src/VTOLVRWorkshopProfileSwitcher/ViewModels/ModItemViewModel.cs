@@ -8,8 +8,10 @@ using VTOLVRWorkshopProfileSwitcher.Models;
 
 namespace VTOLVRWorkshopProfileSwitcher.ViewModels;
 
-public sealed partial class ModItemViewModel : ObservableObject
+public sealed partial class ModItemViewModel : ObservableObject, IDisposable
 {
+    private const int ThumbnailDecodeWidth = 384;
+
     public WorkshopMod Source { get; }
 
     [ObservableProperty]
@@ -31,7 +33,8 @@ public sealed partial class ModItemViewModel : ObservableObject
             if (!_thumbnailLoadAttempted)
             {
                 _thumbnailLoadAttempted = true;
-                _thumbnailImage = ViewModelImageLoader.TryLoadBitmap(Source.ThumbnailPath);
+                _thumbnailLease = ViewModelImageLoader.TryAcquireBitmap(Source.ThumbnailPath, ThumbnailDecodeWidth);
+                _thumbnailImage = _thumbnailLease?.Bitmap;
             }
 
             return _thumbnailImage;
@@ -42,7 +45,9 @@ public sealed partial class ModItemViewModel : ObservableObject
 
     private readonly Func<ModItemViewModel, Task>? _onDelete;
     private Bitmap? _thumbnailImage;
+    private ViewModelImageLoader.BitmapLease? _thumbnailLease;
     private bool _thumbnailLoadAttempted;
+    private bool _disposed;
 
     public ModItemViewModel(WorkshopMod source, Func<ModItemViewModel, Task>? onDelete = null)
     {
@@ -60,4 +65,16 @@ public sealed partial class ModItemViewModel : ObservableObject
         }
     }
 
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _thumbnailLease?.Dispose();
+        _thumbnailLease = null;
+        _thumbnailImage = null;
+    }
 }

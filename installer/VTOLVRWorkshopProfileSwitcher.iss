@@ -3,7 +3,7 @@
 #endif
 
 #ifndef PublisherName
-  #define PublisherName "VTOLVR Workshop Tools"
+  #define PublisherName "B1progame | VTOLVR Workshop Tools"
 #endif
 
 #ifndef AppChannel

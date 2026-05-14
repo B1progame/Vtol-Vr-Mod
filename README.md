@@ -46,6 +46,8 @@ This tool is only a profile switcher for locally installed mods. It does not inc
 | CLI mode | &#10007; |
 | Drag-and-drop mod package import | &#10007; |
 
+For the full categorized feature list, see [FEATURES.md](docs/FEATURES.md).
+
 ## How to Use
 
 1. Scan and review mods.

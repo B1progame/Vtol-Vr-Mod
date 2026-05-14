@@ -25,5 +25,7 @@
 *.exe
 !scripts/build-beta-installer.ps1
 
+
 # Local experiments / throwaway probes
 /local-probes/
+/scripts/
