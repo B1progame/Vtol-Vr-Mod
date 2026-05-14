@@ -1710,16 +1710,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         try
         {
             UpdateStatusText = "Loading downgrade versions...";
-            var releases = await TryGetReleasesAsync(DowngradeReleasePageSize, includePrerelease: IncludeBetaUpdates);
+            var releases = await TryGetReleasesAsync(DowngradeReleasePageSize, includePrerelease: true);
+            var currentComparableVersion = ParseComparableReleaseVersion(CurrentVersionId) ??
+                                           new ComparableReleaseVersion(CurrentAppVersion, Array.Empty<string>());
             var downgradeOptions = releases
                 .Where(release => !string.IsNullOrWhiteSpace(release.InstallerUrl))
                 .Select(release => new
                 {
                     Release = release,
-                    Version = ParseVersion(release.TagName)
+                    Version = ParseComparableReleaseVersion(release.TagName)
                 })
-                .Where(item => item.Version is not null && item.Version < CurrentAppVersion)
-                .OrderByDescending(item => item.Version)
+                .Where(item => item.Version is not null &&
+                               CompareReleaseVersions(item.Version.Value, currentComparableVersion) < 0)
+                .OrderByDescending(item => item.Version, ComparableReleaseVersionComparer.Instance)
                 .Select(item => new ReleaseInstallOption(
                     item.Release.TagName,
                     $"{item.Release.TagName}{(item.Release.IsPrerelease ? " [beta]" : string.Empty)} ({item.Release.InstallerName})",
@@ -2636,13 +2639,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private static bool HasSupportedUpdateTagFormat(string? tag)
     {
-        if (string.IsNullOrWhiteSpace(tag))
-        {
-            return false;
-        }
-
-        var normalized = NormalizeTag(tag);
-        return Version.TryParse(normalized, out _);
+        return ParseComparableReleaseVersion(tag) is not null;
     }
 
     private static bool ShouldRunFullInstallerUi(string? latestTag, Version currentVersion)
@@ -2690,6 +2687,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly record struct ComparableReleaseVersion(Version CoreVersion, string[] PrereleaseIdentifiers)
     {
         public bool IsPrerelease => PrereleaseIdentifiers.Length > 0;
+    }
+
+    private sealed class ComparableReleaseVersionComparer : IComparer<ComparableReleaseVersion?>
+    {
+        public static ComparableReleaseVersionComparer Instance { get; } = new();
+
+        public int Compare(ComparableReleaseVersion? x, ComparableReleaseVersion? y)
+        {
+            if (x is null && y is null)
+            {
+                return 0;
+            }
+
+            if (x is null)
+            {
+                return -1;
+            }
+
+            if (y is null)
+            {
+                return 1;
+            }
+
+            return CompareReleaseVersions(x.Value, y.Value);
+        }
     }
 
     private static bool IsNumericWorkshopId(string? value)
@@ -2765,7 +2787,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var root = doc.RootElement;
         var tag = root.TryGetProperty("tag_name", out var tagEl) ? tagEl.GetString() : null;
         var html = root.TryGetProperty("html_url", out var htmlEl) ? htmlEl.GetString() : null;
-        var (installerUrl, installerName) = ReadInstallerAsset(root);
+        var isPrerelease = root.TryGetProperty("prerelease", out var prereleaseEl) &&
+                           prereleaseEl.ValueKind == JsonValueKind.True;
+        var (installerUrl, installerName) = ReadInstallerAsset(root, preferBetaAsset: isPrerelease);
         return (tag ?? string.Empty, html ?? ReleasesPageUrl, installerUrl, installerName);
     }
 
@@ -2802,7 +2826,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
 
             var html = release.TryGetProperty("html_url", out var htmlEl) ? htmlEl.GetString() : null;
-            var (installerUrl, installerName) = ReadInstallerAsset(release);
+            var (installerUrl, installerName) = ReadInstallerAsset(release, preferBetaAsset: isPrerelease);
             releases.Add(new ReleaseInfo(
                 tag ?? string.Empty,
                 html ?? ReleasesPageUrl,
@@ -2814,7 +2838,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return releases;
     }
 
-    private static (string InstallerUrl, string InstallerName) ReadInstallerAsset(JsonElement releaseRoot)
+    private static (string InstallerUrl, string InstallerName) ReadInstallerAsset(JsonElement releaseRoot, bool preferBetaAsset)
     {
         if (!releaseRoot.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
         {
@@ -2839,7 +2863,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return (string.Empty, string.Empty);
         }
 
-        var preferred = candidates.FirstOrDefault(x => x.Name.Contains("setup", StringComparison.OrdinalIgnoreCase));
+        var preferred = preferBetaAsset
+            ? candidates.FirstOrDefault(x =>
+                x.Name.Contains("beta", StringComparison.OrdinalIgnoreCase) &&
+                x.Name.Contains("setup", StringComparison.OrdinalIgnoreCase))
+            : candidates.FirstOrDefault(x =>
+                !x.Name.Contains("beta", StringComparison.OrdinalIgnoreCase) &&
+                x.Name.Contains("setup", StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrWhiteSpace(preferred.Url))
+        {
+            preferred = preferBetaAsset
+                ? candidates.FirstOrDefault(x => x.Name.Contains("beta", StringComparison.OrdinalIgnoreCase))
+                : candidates.FirstOrDefault(x => !x.Name.Contains("beta", StringComparison.OrdinalIgnoreCase));
+        }
+
         if (string.IsNullOrWhiteSpace(preferred.Url))
         {
             preferred = candidates[0];

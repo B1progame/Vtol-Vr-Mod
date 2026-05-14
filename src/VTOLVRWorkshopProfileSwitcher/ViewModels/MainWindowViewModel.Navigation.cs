@@ -1373,7 +1373,7 @@ public sealed partial class MainWindowViewModel
                 return;
             }
 
-            PauseServerScanningForGameLaunch();
+            await StopServerScanningImmediatelyAsync();
             LaunchVtolVr(doorstopEnabled: true);
             MarkTrayHideAfterLaunchRequested();
             StartVtolExitCleanupWatcher();
@@ -1429,7 +1429,7 @@ public sealed partial class MainWindowViewModel
                 return;
             }
 
-            PauseServerScanningForGameLaunch();
+            await StopServerScanningImmediatelyAsync();
             LaunchVtolVr(doorstopEnabled: false);
             MarkTrayHideAfterLaunchRequested();
             StartVtolExitCleanupWatcher();

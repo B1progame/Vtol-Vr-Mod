@@ -128,7 +128,6 @@ public sealed partial class MainWindowViewModel
         _serverRefreshCts?.Cancel();
         _serverRefreshCts?.Dispose();
         _serverRefreshCts = new CancellationTokenSource();
-
         try
         {
             var result = await _serverBrowserService.LoadServersAsync(_serverRefreshCts.Token);
@@ -509,9 +508,21 @@ public sealed partial class MainWindowViewModel
     {
         _serverScanningPausedForGameLaunch = true;
         _serverRefreshCts?.Cancel();
+        _serverBrowserService.StopActiveQuery();
         StopSelectedServerRefreshLoop();
         ServersStatusMessage = "Server scanning is paused while VTOL VR is running.";
         NotifyServerUiStateChanged();
+    }
+
+    private async Task StopServerScanningImmediatelyAsync()
+    {
+        PauseServerScanningForGameLaunch();
+
+        var deadlineUtc = DateTime.UtcNow.AddSeconds(3);
+        while (IsLoadingServers && DateTime.UtcNow < deadlineUtc)
+        {
+            await Task.Delay(50);
+        }
     }
 
     private void ResumeServerScanningAfterGameExit()

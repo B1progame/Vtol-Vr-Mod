@@ -22,7 +22,7 @@ $appName = if ($isBeta) { "VTOL VR Switcher Beta" } else { "VTOL VR Switcher" }
 $defaultDirName = "{autopf}\VTOL VR Switcher"
 $defaultGroupName = if ($isBeta) { "VTOL VR Switcher Beta" } else { "VTOL VR Switcher" }
 $appId = '{{6AB2D1C3-8D31-45E8-8B3F-AC5C8C1A7E12}}'
-$defaultIncludeBetaUpdates = if ($isBeta) { "true" } else { "false" }
+$defaultIncludeBetaUpdates = "false"
 $showHeaderBetaBadgeForStableBuilds = if ($isBeta) { "true" } else { "false" }
 
 $versionText = [string]$Version

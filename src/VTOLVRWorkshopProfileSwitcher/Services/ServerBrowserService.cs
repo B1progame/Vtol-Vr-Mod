@@ -16,6 +16,21 @@ public sealed class ServerBrowserService
     private const uint VtolVrAppId = 667970;
     private readonly SteamWorkshopInfoService _workshopInfoService = new();
 
+    public void StopActiveQuery()
+    {
+        try
+        {
+            if (SteamClient.IsValid)
+            {
+                SteamClient.Shutdown();
+            }
+        }
+        catch
+        {
+            // Best-effort only.
+        }
+    }
+
     public async Task<ServerBrowserResult> LoadServersAsync(CancellationToken cancellationToken = default)
     {
         if (!IsSteamRunning())
@@ -32,6 +47,7 @@ public sealed class ServerBrowserService
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             SteamClient.Init(VtolVrAppId, true);
 
             var lobbies = await SteamMatchmaking.LobbyList
@@ -39,6 +55,8 @@ public sealed class ServerBrowserService
                 .WithSlotsAvailable(1)
                 .WithMaxResults(250)
                 .RequestAsync();
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (lobbies is null)
             {
