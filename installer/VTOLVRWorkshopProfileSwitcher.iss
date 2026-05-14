@@ -85,6 +85,28 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+Type: files; Name: "{commonprograms}\VTOL VR Switcher Beta.lnk"
+Type: files; Name: "{commonprograms}\VTOL VR Switcher\VTOL VR Switcher Beta.lnk"
+Type: files; Name: "{commonprograms}\VTOL VR Switcher Beta\VTOL VR Switcher Beta.lnk"
+Type: filesandordirs; Name: "{commonprograms}\VTOL VR Switcher Beta"
+Type: files; Name: "{userprograms}\VTOL VR Switcher Beta.lnk"
+Type: files; Name: "{userprograms}\VTOL VR Switcher\VTOL VR Switcher Beta.lnk"
+Type: files; Name: "{userprograms}\VTOL VR Switcher Beta\VTOL VR Switcher Beta.lnk"
+Type: filesandordirs; Name: "{userprograms}\VTOL VR Switcher Beta"
+Type: files; Name: "{commondesktop}\VTOL VR Switcher Beta.lnk"
+Type: files; Name: "{userdesktop}\VTOL VR Switcher Beta.lnk"
+Type: files; Name: "{commonprograms}\VTOL VR Switcher.lnk"
+Type: files; Name: "{commonprograms}\VTOL VR Switcher\VTOL VR Switcher.lnk"
+Type: files; Name: "{commonprograms}\VTOL VR Switcher Beta\VTOL VR Switcher.lnk"
+Type: filesandordirs; Name: "{commonprograms}\VTOL VR Switcher"
+Type: files; Name: "{userprograms}\VTOL VR Switcher.lnk"
+Type: files; Name: "{userprograms}\VTOL VR Switcher\VTOL VR Switcher.lnk"
+Type: files; Name: "{userprograms}\VTOL VR Switcher Beta\VTOL VR Switcher.lnk"
+Type: filesandordirs; Name: "{userprograms}\VTOL VR Switcher"
+Type: files; Name: "{commondesktop}\VTOL VR Switcher.lnk"
+Type: files; Name: "{userdesktop}\VTOL VR Switcher.lnk"
+
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\VTOLVRWorkshopProfileSwitcher.exe"; Tasks: desktopicon

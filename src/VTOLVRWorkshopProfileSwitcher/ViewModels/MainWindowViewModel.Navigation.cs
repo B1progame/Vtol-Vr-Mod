@@ -199,6 +199,15 @@ public sealed partial class MainWindowViewModel
 
     partial void OnIsVtolRunningChanged(bool value)
     {
+        if (value)
+        {
+            PauseServerScanningForGameLaunch();
+        }
+        else
+        {
+            ResumeServerScanningAfterGameExit();
+        }
+
         OnPropertyChanged(nameof(CanOpenLaunchFlyout));
         OnPropertyChanged(nameof(SidebarPlayText));
         OnPropertyChanged(nameof(PlayModdedButtonText));
@@ -1364,7 +1373,9 @@ public sealed partial class MainWindowViewModel
                 return;
             }
 
+            PauseServerScanningForGameLaunch();
             LaunchVtolVr(doorstopEnabled: true);
+            MarkTrayHideAfterLaunchRequested();
             StartVtolExitCleanupWatcher();
             await TryCloseModManagerIfRunningAsync();
             await _logger.LogAsync($"Launched VTOL VR modded with profile '{profileToUse.Name}'");
@@ -1418,7 +1429,9 @@ public sealed partial class MainWindowViewModel
                 return;
             }
 
+            PauseServerScanningForGameLaunch();
             LaunchVtolVr(doorstopEnabled: false);
+            MarkTrayHideAfterLaunchRequested();
             StartVtolExitCleanupWatcher();
             await _logger.LogAsync("Launched VTOL VR vanilla");
             await ReloadLogsAsync();
@@ -1431,6 +1444,12 @@ public sealed partial class MainWindowViewModel
         {
             EndLaunch(launchToken);
         }
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task StopVtolAsync()
+    {
+        await StopVtolVrAsync();
     }
 
     private void LaunchVtolVr(bool doorstopEnabled)

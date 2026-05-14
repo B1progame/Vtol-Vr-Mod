@@ -37,6 +37,21 @@ if ($null -eq $versionTagText) {
 }
 $versionTagText = $versionTagText.Trim()
 
+if ([string]::IsNullOrWhiteSpace($versionText) -and [string]::IsNullOrWhiteSpace($versionTagText)) {
+    $prompt = if ($isBeta) {
+        "Beta version tag (example: 1.1.9-beta.1)"
+    }
+    else {
+        "Version tag (example: 1.1.9)"
+    }
+
+    $versionTagText = [string](Read-Host $prompt)
+    if ($null -eq $versionTagText) {
+        $versionTagText = string.Empty
+    }
+    $versionTagText = $versionTagText.Trim()
+}
+
 if ([string]::IsNullOrWhiteSpace($versionText) -and -not [string]::IsNullOrWhiteSpace($versionTagText)) {
     $versionText = ($versionTagText.TrimStart("v", "V") -split "-", 2)[0].Trim()
 }

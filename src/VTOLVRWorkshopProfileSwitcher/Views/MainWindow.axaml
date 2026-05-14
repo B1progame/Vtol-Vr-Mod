@@ -102,10 +102,9 @@
             </Grid>
           </Button>
           <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsServersSelected}" Command="{Binding NavigateServersCommand}">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,*">
               <Border Classes="nav-icon"><TextBlock Text="&#xE703;" /></Border>
               <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="Servers" VerticalAlignment="Center" />
-              <Border Grid.Column="2" Classes="beta-chip" VerticalAlignment="Center"><TextBlock Text="BETA" /></Border>
             </Grid>
           </Button>
           <Button Classes="sidebar-item" Classes.sidebar-item-active="{Binding IsModsSelected}" Command="{Binding NavigateModsCommand}">

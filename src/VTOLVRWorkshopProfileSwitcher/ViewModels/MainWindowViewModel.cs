@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -136,6 +137,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool isVtolRunning;
+
+    [ObservableProperty]
+    private bool requestTrayHideAfterLaunch;
 
     [ObservableProperty]
     private string launchButtonHoverTarget = string.Empty;
@@ -2147,6 +2151,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
     }
 
+    public void MarkTrayHideAfterLaunchRequested()
+    {
+        RequestTrayHideAfterLaunch = true;
+    }
+
+    public void ClearTrayHideAfterLaunchRequest()
+    {
+        RequestTrayHideAfterLaunch = false;
+    }
+
     private async Task<IStorageFile?> PickPackageImportFileAsync()
     {
         var window = GetMainWindow();
@@ -2392,14 +2406,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return false;
         }
 
-        var latest = ParseVersion(latestTag);
+        var latest = ParseComparableReleaseVersion(latestTag);
         if (latest is null)
         {
             // Ignore non-version tags like "Installer" to avoid false update prompts.
             return false;
         }
 
-        return latest > currentVersion;
+        var current = ParseComparableReleaseVersion(currentVersionId) ??
+                      new ComparableReleaseVersion(currentVersion, Array.Empty<string>());
+
+        return CompareReleaseVersions(latest.Value, current) > 0;
     }
 
     private static Version? ParseVersion(string? tag)
@@ -2447,6 +2464,104 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         return normalized.Trim();
+    }
+
+    private static ComparableReleaseVersion? ParseComparableReleaseVersion(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return null;
+        }
+
+        var normalized = NormalizeTag(tag);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        var plusIndex = normalized.IndexOf('+', StringComparison.Ordinal);
+        if (plusIndex >= 0)
+        {
+            normalized = normalized[..plusIndex];
+        }
+
+        var dashIndex = normalized.IndexOf('-', StringComparison.Ordinal);
+        var coreText = dashIndex >= 0 ? normalized[..dashIndex] : normalized;
+        var prereleaseText = dashIndex >= 0 ? normalized[(dashIndex + 1)..] : string.Empty;
+
+        if (!Version.TryParse(coreText, out var coreVersion) || coreVersion is null)
+        {
+            return null;
+        }
+
+        var prereleaseIdentifiers = string.IsNullOrWhiteSpace(prereleaseText)
+            ? Array.Empty<string>()
+            : prereleaseText
+                .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return new ComparableReleaseVersion(coreVersion, prereleaseIdentifiers);
+    }
+
+    private static int CompareReleaseVersions(ComparableReleaseVersion left, ComparableReleaseVersion right)
+    {
+        var coreComparison = left.CoreVersion.CompareTo(right.CoreVersion);
+        if (coreComparison != 0)
+        {
+            return coreComparison;
+        }
+
+        if (!left.IsPrerelease && !right.IsPrerelease)
+        {
+            return 0;
+        }
+
+        if (!left.IsPrerelease)
+        {
+            return 1;
+        }
+
+        if (!right.IsPrerelease)
+        {
+            return -1;
+        }
+
+        var sharedLength = Math.Min(left.PrereleaseIdentifiers.Length, right.PrereleaseIdentifiers.Length);
+        for (var index = 0; index < sharedLength; index++)
+        {
+            var identifierComparison = ComparePrereleaseIdentifier(
+                left.PrereleaseIdentifiers[index],
+                right.PrereleaseIdentifiers[index]);
+
+            if (identifierComparison != 0)
+            {
+                return identifierComparison;
+            }
+        }
+
+        return left.PrereleaseIdentifiers.Length.CompareTo(right.PrereleaseIdentifiers.Length);
+    }
+
+    private static int ComparePrereleaseIdentifier(string left, string right)
+    {
+        var leftIsNumeric = int.TryParse(left, out var leftNumber);
+        var rightIsNumeric = int.TryParse(right, out var rightNumber);
+
+        if (leftIsNumeric && rightIsNumeric)
+        {
+            return leftNumber.CompareTo(rightNumber);
+        }
+
+        if (leftIsNumeric)
+        {
+            return -1;
+        }
+
+        if (rightIsNumeric)
+        {
+            return 1;
+        }
+
+        return string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasSupportedUpdateTagFormat(string? tag)
@@ -2500,6 +2615,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         var display = GetCurrentVersionDisplay(versionId);
         return display.Contains('-', StringComparison.Ordinal);
+    }
+
+    private readonly record struct ComparableReleaseVersion(Version CoreVersion, string[] PrereleaseIdentifiers)
+    {
+        public bool IsPrerelease => PrereleaseIdentifiers.Length > 0;
     }
 
     private static bool IsNumericWorkshopId(string? value)

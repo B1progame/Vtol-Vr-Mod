@@ -18,8 +18,10 @@ public sealed partial class MainWindowViewModel
 {
     private readonly ServerBrowserService _serverBrowserService = new();
     private readonly SemaphoreSlim _selectedServerRefreshLock = new(1, 1);
+    private CancellationTokenSource? _serverRefreshCts;
     private CancellationTokenSource? _selectedServerRefreshCts;
     private bool _hasLoadedServersOnce;
+    private bool _serverScanningPausedForGameLaunch;
     private static readonly TimeSpan SelectedServerRefreshInterval = TimeSpan.FromSeconds(5);
 
     [ObservableProperty]
@@ -113,13 +115,23 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        if (_serverScanningPausedForGameLaunch || IsVtolRunning)
+        {
+            ServersStatusMessage = "Server scanning is paused while VTOL VR is running.";
+            NotifyServerUiStateChanged();
+            return;
+        }
+
         IsLoadingServers = true;
         ServersStatusMessage = "Refreshing public VTOL VR servers...";
         NotifyServerUiStateChanged();
+        _serverRefreshCts?.Cancel();
+        _serverRefreshCts?.Dispose();
+        _serverRefreshCts = new CancellationTokenSource();
 
         try
         {
-            var result = await _serverBrowserService.LoadServersAsync();
+            var result = await _serverBrowserService.LoadServersAsync(_serverRefreshCts.Token);
             _hasLoadedServersOnce = true;
             var installedModIds = await GetInstalledModIdsForServersAsync();
             var installedScenarioIds = await GetInstalledScenarioIdsAsync();
@@ -145,6 +157,17 @@ public sealed partial class MainWindowViewModel
 
             DisposeItems(oldServers);
         }
+        catch (OperationCanceledException)
+        {
+            if (_serverScanningPausedForGameLaunch || IsVtolRunning)
+            {
+                ServersStatusMessage = "Server scanning is paused while VTOL VR is running.";
+            }
+            else
+            {
+                ServersStatusMessage = "Server refresh canceled.";
+            }
+        }
         catch (Exception ex)
         {
             DisposeItems(Servers);
@@ -160,6 +183,8 @@ public sealed partial class MainWindowViewModel
         }
         finally
         {
+            _serverRefreshCts?.Dispose();
+            _serverRefreshCts = null;
             IsLoadingServers = false;
             NotifyServerUiStateChanged();
         }
@@ -167,6 +192,13 @@ public sealed partial class MainWindowViewModel
 
     private async Task LoadServersIfNeededAsync()
     {
+        if (_serverScanningPausedForGameLaunch || IsVtolRunning)
+        {
+            ServersStatusMessage = "Server scanning is paused while VTOL VR is running.";
+            NotifyServerUiStateChanged();
+            return;
+        }
+
         if (_hasLoadedServersOnce || IsLoadingServers)
         {
             return;
@@ -471,6 +503,24 @@ public sealed partial class MainWindowViewModel
         _selectedServerRefreshCts.Cancel();
         _selectedServerRefreshCts.Dispose();
         _selectedServerRefreshCts = null;
+    }
+
+    private void PauseServerScanningForGameLaunch()
+    {
+        _serverScanningPausedForGameLaunch = true;
+        _serverRefreshCts?.Cancel();
+        StopSelectedServerRefreshLoop();
+        ServersStatusMessage = "Server scanning is paused while VTOL VR is running.";
+        NotifyServerUiStateChanged();
+    }
+
+    private void ResumeServerScanningAfterGameExit()
+    {
+        _serverScanningPausedForGameLaunch = false;
+        ServersStatusMessage = _hasLoadedServersOnce
+            ? "Server list is ready. Refresh to scan again."
+            : "Start Steam to view servers.";
+        NotifyServerUiStateChanged();
     }
 
     private async Task RunSelectedServerRefreshLoopAsync(CancellationToken cancellationToken)

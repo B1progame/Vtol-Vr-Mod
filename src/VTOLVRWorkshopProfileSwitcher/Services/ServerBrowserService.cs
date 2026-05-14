@@ -80,6 +80,10 @@ public sealed class ServerBrowserService
                 Servers = ordered
             };
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             return new ServerBrowserResult
